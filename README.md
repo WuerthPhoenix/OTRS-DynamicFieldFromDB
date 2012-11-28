@@ -15,7 +15,7 @@ To use full functionalities the OTRS feature Add-on OTRSTicketMaskExtensions is 
 
 Install
 -------
-Use the OTRS package manager to install the opm file located in the build/ directory or build the opm using the sopm.
+Use the OTRS package manager to install the opm file located in the Github repository Downloads or build the opm using the sopm.
 
 
 Usage
