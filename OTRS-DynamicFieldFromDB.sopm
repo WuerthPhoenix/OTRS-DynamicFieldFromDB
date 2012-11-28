@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<otrs_package version="1.0">
+    <Name>OTRS-DynamicFieldFromDB</Name>
+    <Version>1.0.0</Version>
+    <Framework>3.1.x</Framework>
+    <Vendor>Wuerth Phoenix S.R.L.</Vendor>
+    <URL>http://www.wuerthphoenix.com/</URL>
+    <License>GNU GENERAL PUBLIC LICENSE Version 2, June 1991</License>
+    <ChangeLog Version="1.0.0" Date="2012-11-28 12:30:21">First public release.</ChangeLog>
+    <Description Lang="en">Adds a new DynamicField Type that permits to load the possible values at runtime from an external DB.</Description>
+    <IntroInstall Type="post" Lang="en" Title="Thank you!">Thank you for choosing the WP DynamicField From DB.</IntroInstall>
+    <BuildDate>?</BuildDate>
+    <BuildHost>?</BuildHost>
+    <Filelist>
+        <File Permission="644" Location="Kernel/Config/Files/DynamicFieldDropdownFromDB.xml"></File>
+        <File Permission="644" Location="Kernel/Output/HTML/Standard/AdminDynamicFieldDropdownFromDB.dtl"></File>
+        <File Permission="644" Location="Kernel/Output/HTML/Standard/AdminDynamicFieldTextAreaFromDB.dtl"></File>
+        <File Permission="644" Location="Custom/Kernel/Modules/AdminDynamicFieldDropdownFromDB.pm"></File>
+        <File Permission="644" Location="Custom/Kernel/Modules/AdminDynamicFieldTextAreaFromDB.pm"></File>
+        <File Permission="644" Location="Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm"></File>
+        <File Permission="644" Location="Custom/Kernel/System/DynamicField/Backend/TextAreaFromDB.pm"></File>
+    </Filelist>
+</otrs_package>
