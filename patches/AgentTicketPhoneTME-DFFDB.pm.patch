@@ -1,0 +1,26 @@
+--- Custom/Kernel/Modules/AgentTicketPhone.pm	2012-10-31 14:51:24.453281307 +0100
++++ Custom/Kernel/Modules/AgentTicketPhone_new.pm	2012-10-31 14:53:20.261280745 +0100
+@@ -2111,6 +2111,10 @@
+             next DYNAMICFIELD if $DynamicFieldConfig->{ObjectType} ne 'Ticket';
+ 
+             my $PossibleValues = $Self->{BackendObject}->AJAXPossibleValuesGet(
++		#####  FOTH - WP DynamicField From DB ##### START
++		%GetParam,
++		ParamObject     => $Self->{ParamObject},
++		#####  FOTH - WP DynamicField From DB ##### END
+                 DynamicFieldConfig => $DynamicFieldConfig,
+ # ---
+ # OTRSDynamicTicketTemplates
+@@ -2256,7 +2260,11 @@
+             push @FormDisplayOutput, {
+                 Name => 'FormDisplay',
+                 Data => \%Output,
+-                Max  => 10000,
++########### FOTH ################
++## do not truncate HTML output of DynamicFields with many option values
++#                Max  => 10000,
++		Max => -1,
++########### END FOTH ############
+             };
+         }
+ # ---
