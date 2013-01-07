@@ -9,7 +9,7 @@
 # did not receive this file, see http://www.gnu.org/licenses/agpl.txt.
 # --
 
-package Kernel::Modules::AdminDynamicFieldDropdownFromDB;
+package Kernel::Modules::AdminDynamicFieldMultiselectFromDB;
 
 use strict;
 use warnings;
@@ -172,7 +172,7 @@ sub _AddAction {
     for my $ConfigParam (
         qw(
         ObjectType ObjectTypeName FieldType FieldTypeName DefaultValue PossibleNone
-        TranslatableValues ValidID Link Query VisualQuery Parameters DBIstring DBIuser DBIpass Separator CacheTTL
+        TranslatableValues ValidID Link Query Parameters DBIstring DBIuser DBIpass Separator CacheTTL
         )
         )
     {
@@ -207,8 +207,6 @@ sub _AddAction {
         TranslatableValues => $GetParam{TranslatableValues},
         Link               => $GetParam{Link},
 	Query		   => $GetParam{Query},
-	StoreValue	   => $GetParam{StoreValue},
-	VisualQuery	   => $GetParam{VisualQuery},
 	Parameters	   => $GetParam{Parameters},
 	DBIstring	   => $GetParam{DBIstring},
 	DBIuser		   => $GetParam{DBIuser},
@@ -300,8 +298,6 @@ sub _Change {
         # set Link
         $Config{Link} = $DynamicFieldData->{Config}->{Link};
 	$Config{Query} = $DynamicFieldData->{Config}->{Query} || 'insert query here';
-	$Config{StoreValue} = $DynamicFieldData->{Config}->{StoreValue};
-	$Config{VisualQuery} = $DynamicFieldData->{Config}->{VisualQuery} || 'insert query here';
 	$Config{Parameters} = $DynamicFieldData->{Config}->{Parameters};
 	$Config{DBIstring} = $DynamicFieldData->{Config}->{DBIstring};
 	$Config{DBIuser} = $DynamicFieldData->{Config}->{DBIuser};
@@ -390,7 +386,7 @@ sub _ChangeAction {
     for my $ConfigParam (
         qw(
         ObjectType ObjectTypeName FieldType FieldTypeName DefaultValue PossibleNone
-        TranslatableValues ValidID Link Query StoreValue VisualQuery Parameters DBIstring DBIuser DBIpass Separator CacheTTL
+        TranslatableValues ValidID Link Query Parameters DBIstring DBIuser DBIpass Separator CacheTTL
         )
         )
     {
@@ -438,8 +434,6 @@ sub _ChangeAction {
         TranslatableValues => $GetParam{TranslatableValues},
         Link               => $GetParam{Link},
 	Query		   => $GetParam{Query},
-	StoreValue	   => $GetParam{StoreValue},
-	VisualQuery	   => $GetParam{VisualQuery},
 	Parameters	   => $GetParam{Parameters},
 	DBIstring	   => $GetParam{DBIstring},
 	DBIuser		   => $GetParam{DBIuser},
@@ -623,23 +617,8 @@ unless(! $@)
         Class      => 'W50pc',
     );
 
-    my $StoreValue = $Param{StoreValue} || '0';
-
-    # create translatable values option list
-    my $StoreValueStrg = $Self->{LayoutObject}->BuildSelection(
-        Data => {
-            0 => 'No',
-            1 => 'Yes',
-        },
-        Name       => 'StoreValue',
-        SelectedID => $StoreValue,
-        Class      => 'W50pc',
-    );
-
-
     my $Link = $Param{Link} || '';
     my $Query = $Param{Query} || '';
-    my $VisualQuery = $Param{VisualQuery} || '';
     my $Parameters = $Param{Parameters} || '';
     my $DBIstring = $Param{DBIstring} || '';
     my $DBIuser = $Param{DBIuser} || '';
@@ -649,7 +628,7 @@ unless(! $@)
 
     # generate output
     $Output .= $Self->{LayoutObject}->Output(
-        TemplateFile => 'AdminDynamicFieldDropdownFromDB',
+        TemplateFile => 'AdminDynamicFieldMultiselectFromDB',
         Data         => {
             %Param,
             ValidityStrg           => $ValidityStrg,
@@ -660,8 +639,6 @@ unless(! $@)
             TranslatableValuesStrg => $TranslatableValuesStrg,
             Link                   => $Link,
 	    Query		   => $Query,
-	    StoreValue		   => $StoreValueStrg,
-	    VisualQuery		   => $VisualQuery,
 	    Parameters		   => $Parameters,
 	    DBIstring		   => $DBIstring,
 	    DBIuser		   => $DBIuser,

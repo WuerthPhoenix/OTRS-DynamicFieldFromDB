@@ -179,30 +179,7 @@
                                 $Text{"Example without parameters"}: SELECT id, name FROM table
                             </p>
                         </div>
-                         <div class="SpacingTop"></div>
-                        <label for="StoreValue">$Text{"Store Key and Value in DB"}:</label>
-                        <div class="Field">
-                            $Data{"StoreValue"}
-                            <p class="FieldExplanation">$Text{"Activate this option to store Key and Values in DB. If activated, no more Visualization Query is needed."}
-                            <br/>
-                            $Text{"The data is stored in the '<key>||<value>' format in the database."}
-                            </p>
-                        </div>
-                        <div class="Clear"></div>
 
-
-                        <div class="Clear"></div>
-			<label for="VisualQuery">$Text{"Visualization Query"}:</label>
-                        <div class="Field">
-                            <textarea id="VisualQuery" class="W50pc" type="textarea" rows="3" maxlength="500" name="VisualQuery">$QData{"VisualQuery"}</textarea>
-                            <p class="FieldExplanation">
-                                $Text{"Here you must specify the query to execute for retrieving back the string visualized once stored the key. This query *must* have *only one* Parameter that is susbtituted with the stored key."}
-                                <br/>
-                                $Text{"Example with parameters"}: SELECT name FROM table WHERE id = ?
-				<br/>
-                                $Text{"NOTE: This feature is only available with the OTRSTicketMaskExtension add-on on which it depends on."}
-                            </p>
-                        </div>
                         <div class="Clear"></div>
 			<label for="Parameters">$Text{"Parameters"}:</label>
                         <div class="Field">
@@ -291,20 +268,6 @@ $('.ValueRemove').bind('click', function () {
 $('.DefaultValueKeyItem,.DefaultValueItem').bind('keyup', function () {
     Core.Agent.Admin.DynamicFieldDropdown.RecreateDefaultValueList();
 });
-
-function toggleVisualQuery() {
-        if ($('#StoreValue').val() == "0") {                                                                                                                                                  
-                $('#VisualQuery').attr('readonly',null);                                                                                                                                      
-        } else {                                                                                                                                                                              
-                $('#VisualQuery').attr('readonly','readonly');                                                                                                                                
-        }
-}
-
-$('#StoreValue').bind('change', function () {
-	toggleVisualQuery();
-});
-
-toggleVisualQuery();
 
 Core.Agent.Admin.DynamicField.ValidationInit();
 //]]></script>
