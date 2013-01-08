@@ -297,7 +297,7 @@ sub _Change {
 
         # set Link
         $Config{Link} = $DynamicFieldData->{Config}->{Link};
-	$Config{Query} = $DynamicFieldData->{Config}->{Query} || 'insert query here';
+	$Config{Query} = $DynamicFieldData->{Config}->{Query};
 	$Config{Parameters} = $DynamicFieldData->{Config}->{Parameters};
 	$Config{DBIstring} = $DynamicFieldData->{Config}->{DBIstring};
 	$Config{DBIuser} = $DynamicFieldData->{Config}->{DBIuser};

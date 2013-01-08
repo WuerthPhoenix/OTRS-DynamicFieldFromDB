@@ -67,6 +67,7 @@ sub new {
         = Kernel::System::DynamicField::Backend::BackendCommon->new( %{$Self} );
 
     $Self->{CacheObject} = Kernel::System::Cache->new(%Param);
+    $Self->{DBObject} = Kernel::System::DB->new(%Param);
 
     return $Self;
 }
@@ -861,6 +862,8 @@ sub AJAXPossibleValuesGet {
     my %PossibleValues;
 
     my @SQLParameters_values;
+    my @SQLParameters_values_refs;
+
     # split Parameters from DynamicFieldConfig in an array:
     my @SQLParameters_keys = split(',', $Param{DynamicFieldConfig}->{Config}->{Parameters});
 
@@ -966,10 +969,17 @@ so we can solve each requirement with following code:
         $SQLParameters_hash{$key} =~ s/^([^|]+)\|\|(.+)$/$1/;
 
         push(@SQLParameters_values, $SQLParameters_hash{$key});
+        push(@SQLParameters_values_refs, \$SQLParameters_hash{$key});
+
         if ( ! $SQLParameters_hash{$key} ) {
             # if one parameter is undef, return empty Possible values;
             return \%PossibleValues;
         }
+    }
+
+    if (!(($Param{DynamicFieldConfig}->{Config}->{Query} =~ tr/?//) eq scalar(@SQLParameters_values))) {
+        %PossibleValues = ( '' => 'ERROR: wrong number of parameters, please check settings.' );
+        return \%PossibleValues;
     }
 
 #print ERRLOG Dumper(\@SQLParameters_values);
@@ -984,30 +994,56 @@ so we can solve each requirement with following code:
         %PossibleValues = %{ $PossibleValues_ref };
     }
     else {
-    #if ( ! %PossibleValues ) {
         my $selected_parameter = $Param{ParamObject}->{Query}->{param}->{$Param{DynamicFieldConfig}->{Config}->{Parameters}}[0];
     
         # set none value if defined on field config
         if ( $Param{DynamicFieldConfig}->{Config}->{PossibleNone} ) {
             %PossibleValues = ( '' => '-' );
         }
-    	
-	die "Got no DBISTRING!" if ( !$Param{DynamicFieldConfig}->{Config}->{DBIstring} );
 
-        my $dbh = DBI->connect($Param{DynamicFieldConfig}->{Config}->{DBIstring}, $Param{DynamicFieldConfig}->{Config}->{DBIuser}, $Param{DynamicFieldConfig}->{Config}->{DBIpass},
-                          { RaiseError => 1, AutoCommit => 0 });
-    
-	$dbh->{'mysql_enable_utf8'} = 1;
 
-        my $sth = $dbh->prepare($Param{DynamicFieldConfig}->{Config}->{Query});
-    
+    	# if no query specified quit:
+        if ( !$Param{DynamicFieldConfig}->{Config}->{Query} || $Param{DynamicFieldConfig}->{Config}->{Query} eq '' ) {
+	        %PossibleValues = ( '' => 'ERROR: no query specified, please check settings.' );
+        	return \%PossibleValues;
+        }
 
-        $sth->execute( @SQLParameters_values );
+        ### SET DEFAULT SETTINGS
+        # set a default Separator
+        if ( !$Param{DynamicFieldConfig}->{Config}->{Separator} ) {
+            $Param{DynamicFieldConfig}->{Config}->{Separator} = ', ';
+        }
+        ### END SET DEFAULT SETTINGS
 
-    
         my @row;
+	my $sth;
+	my $dbh;
+
+        # use local DB Object if no DBI string is specified.
+	if ( !$Param{DynamicFieldConfig}->{Config}->{DBIstring} ) {
+            $Self->{DBObject}->Prepare(
+                SQL => $Param{DynamicFieldConfig}->{Config}->{Query},
+		Bind => \@SQLParameters_values_refs,
+            );
+
+            #fetch first row
+            @row = $Self->{DBObject}->FetchrowArray();
+
+        } else {
+            $dbh = DBI->connect($Param{DynamicFieldConfig}->{Config}->{DBIstring}, $Param{DynamicFieldConfig}->{Config}->{DBIuser}, $Param{DynamicFieldConfig}->{Config}->{DBIpass},
+                              { RaiseError => 1, AutoCommit => 0 });
+        
+            $dbh->{'mysql_enable_utf8'} = 1;
     
-        while ( @row = $sth->fetchrow_array ) {
+            $sth = $dbh->prepare($Param{DynamicFieldConfig}->{Config}->{Query});
+            $sth->execute( @SQLParameters_values );
+    
+            # fetch first row
+            @row = $sth->fetchrow_array;        
+        }
+
+        # cicle fetched rows from DB
+        while (@row) {
             my $line = '';
             my $firstRow = 0;
             for my $col (@row) {
@@ -1020,17 +1056,27 @@ so we can solve each requirement with following code:
                 }
                 $line .= $col.$Param{DynamicFieldConfig}->{Config}->{Separator};
             }
-	    $line = substr($line, 0, -1 * length($Param{DynamicFieldConfig}->{Config}->{Separator}));
+
+            $line = substr($line, 0, -1 * length($Param{DynamicFieldConfig}->{Config}->{Separator}));
             if ($Param{DynamicFieldConfig}->{Config}->{StoreValue} eq "1") {
                 %PossibleValues = ( %PossibleValues, $row[0]."||".$line => $line);
             }
             else {
                 %PossibleValues = ( %PossibleValues, $row[0] => $line );
             }
-        } 
-    
-        $dbh->disconnect;
-    
+
+            # fetch new row depending on DB connection type
+            if ( !$Param{DynamicFieldConfig}->{Config}->{DBIstring} ) {
+                @row = $Self->{DBObject}->FetchrowArray();
+            }
+            else {
+                @row = $sth->fetchrow_array;
+		if (!@row) {
+                    $dbh->disconnect;
+                }
+            }
+        }
+
         # put all in the cache:
 	
         $Self->{CacheObject}->Set(

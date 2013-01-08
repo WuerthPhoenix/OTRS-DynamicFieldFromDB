@@ -144,7 +144,7 @@
                         <div class="Field">
                             <input id="DBIstring" class="W50pc" type="text" maxlength="500" value="$QData{"DBIstring"}" name="DBIstring"/>
                             <p class="FieldExplanation">
-                                $Text{"Specify the DBI connect string"}
+                                $Text{"Specify the DBI connect string. If nothing is specified, the local DBObject of otrs is used."}
                                 <br/>
                                 $Text{"Example"}: DBI:mysql:databasename;host=db.example.com
                             </p>
