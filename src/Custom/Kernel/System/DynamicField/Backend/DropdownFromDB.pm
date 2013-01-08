@@ -848,6 +848,13 @@ sub ObjectMatch {
     return 1;
 }
 
+sub PossibleValuesError {
+    my ( $Self, $message ) = @_;
+    my %PossibleValuesError;
+    %PossibleValuesError = ( '' => 'ERROR: '.$message );
+    return \%PossibleValuesError;
+}
+
 sub AJAXPossibleValuesGet {
     my ( $Self, %Param ) = @_;
 
@@ -978,8 +985,7 @@ so we can solve each requirement with following code:
     }
 
     if (!(($Param{DynamicFieldConfig}->{Config}->{Query} =~ tr/?//) eq scalar(@SQLParameters_values))) {
-        %PossibleValues = ( '' => 'ERROR: wrong number of parameters, please check settings.' );
-        return \%PossibleValues;
+        return $Self->PossibleValuesError('wrong number of parameters, please check settings.');
     }
 
 #print ERRLOG Dumper(\@SQLParameters_values);
@@ -1004,8 +1010,7 @@ so we can solve each requirement with following code:
 
     	# if no query specified quit:
         if ( !$Param{DynamicFieldConfig}->{Config}->{Query} || $Param{DynamicFieldConfig}->{Config}->{Query} eq '' ) {
-	        %PossibleValues = ( '' => 'ERROR: no query specified, please check settings.' );
-        	return \%PossibleValues;
+            return $Self->PossibleValuesError('no query specified, please check settings.');
         }
 
         ### SET DEFAULT SETTINGS
@@ -1031,7 +1036,7 @@ so we can solve each requirement with following code:
 
         } else {
             $dbh = DBI->connect($Param{DynamicFieldConfig}->{Config}->{DBIstring}, $Param{DynamicFieldConfig}->{Config}->{DBIuser}, $Param{DynamicFieldConfig}->{Config}->{DBIpass},
-                              { RaiseError => 1, AutoCommit => 0 });
+                              { PrintError => 0, AutoCommit => 0, HandleError => \&PossibleValuesError }) or return $Self->PossibleValuesError("could not connect to DB: $DBI::errstr");
         
             $dbh->{'mysql_enable_utf8'} = 1;
     
