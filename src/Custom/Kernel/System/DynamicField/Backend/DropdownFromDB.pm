@@ -231,6 +231,7 @@ sub EditFieldRender {
     if ( defined $Param{Class} && $Param{Class} ne '' ) {
         $FieldClass .= ' ' . $Param{Class};
     }
+        $FieldClass .= ' FromDB';
 
     # set field as mandatory
     $FieldClass .= ' Validate_Required' if $Param{Mandatory};
@@ -465,27 +466,41 @@ sub DisplayValueRender {
     #    );
     
     #    if ( !defined %PossibleValues ) {
-    
-        my $dbh = DBI->connect($Param{DynamicFieldConfig}->{Config}->{DBIstring}, $Param{DynamicFieldConfig}->{Config}->{DBIuser}, $Param{DynamicFieldConfig}->{Config}->{DBIpass},
-                          { RaiseError => 1, AutoCommit => 0 });
-    
-        my $sth = $dbh->prepare($Param{DynamicFieldConfig}->{Config}->{VisualQuery});
-    
-        $sth->execute( $Key );
-    
         my @row;
+        my $dbh;
+        my $sth;
+
+        if ( !$Param{DynamicFieldConfig}->{Config}->{DBIstring} ) {
+            $Self->{DBObject}->Prepare(
+                SQL => $Param{DynamicFieldConfig}->{Config}->{VisualQuery},
+        		Bind => $Key,
+            );
+
+            #fetch first row
+            @row = $Self->{DBObject}->FetchrowArray();
+
+        } else {
+            $dbh = DBI->connect($Param{DynamicFieldConfig}->{Config}->{DBIstring}, $Param{DynamicFieldConfig}->{Config}->{DBIuser}, $Param{DynamicFieldConfig}->{Config}->{DBIpass},
+                              { PrintError => 0, AutoCommit => 0, HandleError => \&PossibleValuesError }) or return $Self->PossibleValuesError("could not connect to DB: $DBI::errstr");
+        
+            $dbh->{'mysql_enable_utf8'} = 1;
     
-        while ( @row = $sth->fetchrow_array ) {
+            $sth = $dbh->prepare($Param{DynamicFieldConfig}->{Config}->{VisualQuery});
+            $sth->execute( $Key );
+    
+            # fetch first row
+            @row = $sth->fetchrow_array;        
+        }
     
     	my $line = '';
     	for my $col (@row) {
     	    $line .= $col.$Param{DynamicFieldConfig}->{Config}->{Separator};
     	}
     	$line = substr($line, 0, -1 * length($Param{DynamicFieldConfig}->{Config}->{Separator}));
-    	%PossibleValues = ( %PossibleValues, $Key => $line );
-        } 
     
-        $dbh->disconnect;
+        if ( $Param{DynamicFieldConfig}->{Config}->{DBIstring} ) {
+            $dbh->disconnect;
+        }
     
         # get real value
         if ( $PossibleValues{$Value} ) {
@@ -580,7 +595,7 @@ sub SearchFieldRender {
     }
 
     # check and set class if necessary
-    my $FieldClass = 'DynamicFieldMultiSelect';
+    my $FieldClass = 'DynamicFieldMultiSelect FromDB';
 
     # set PossibleValues
     my $SelectionData = $FieldConfig->{PossibleValues};
@@ -851,7 +866,7 @@ sub ObjectMatch {
 sub PossibleValuesError {
     my ( $Self, $message ) = @_;
     my %PossibleValuesError;
-    %PossibleValuesError = ( '' => 'ERROR: '.$message );
+    %PossibleValuesError = ( '-' => 'ERROR: '.$message );
     return \%PossibleValuesError;
 }
 
