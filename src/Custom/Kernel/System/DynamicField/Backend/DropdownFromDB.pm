@@ -215,23 +215,12 @@ sub EditFieldRender {
     if ( defined $FieldValue ) {
         $Value = $FieldValue;
     }
-#### FOTH DEBUG	
-#	use Data::Dumper;
-#	open ERRLOG, '>>/tmp/DropdownFromDB.EditFieldValueGet.log';
-#	print ERRLOG $FieldName." :";
-#	print ERRLOG Dumper($Param{ParamObject}->GetParam( Param => $FieldName ));
-#	print ERRLOG Dumper(\%Param);
-#	print ERRLOG Dumper($Value);
-#	print ERRLOG Dumper($Param{ParamObject}->GetParam( Param => 'TicketID'));
-#	close ERRLOG;
-
-
     # check and set class if necessary
     my $FieldClass = 'DynamicFieldText';
     if ( defined $Param{Class} && $Param{Class} ne '' ) {
         $FieldClass .= ' ' . $Param{Class};
     }
-        $FieldClass .= ' FromDB';
+    $FieldClass .= ' FromDB';
 
     # set field as mandatory
     $FieldClass .= ' Validate_Required' if $Param{Mandatory};
@@ -264,7 +253,7 @@ sub EditFieldRender {
         Name => $FieldName,
         SelectedID   => $Value,
         Translation  => $FieldConfig->{TranslatableValues} || 0,
-        PossibleNone => $FieldPossibleNone,
+        PossibleNone => 0, # we do not need to set possibleNone value because we do it already in the AJAXPossibibleValuesGet
         Class        => $FieldClass,
         HTMLQuote    => 1,
     );
@@ -874,10 +863,11 @@ sub AJAXPossibleValuesGet {
     my ( $Self, %Param ) = @_;
 
     ## ENABLE FOR DEBUG: ##
-#    use Data::Dumper;
-#    open ERRLOG, '>>/tmp/DF_'.$Param{DynamicFieldConfig}->{Name}.'.log';
-##    my $DFn = $Param{DynamicFieldConfig}->{Name}."::";
-#    print ERRLOG Dumper($Param{ParamObject}->{Query}->{param});
+    my $DEBUG = 0;
+
+    use Data::Dumper;
+    open ERRLOG, '>>/tmp/DF_'.$Param{DynamicFieldConfig}->{Name}.'.log' if $DEBUG;
+    print ERRLOG "[AJAXPossibleValuesGet START]---------------------------------\n" if $DEBUG;
 
     my $query_needed = 0;
 
@@ -924,7 +914,7 @@ so we can solve each requirement with following code:
 
 =cut
 
-    if ( scalar(@SQLParameters_keys) && $Param{ParamObject}->GetParam( Param => 'TicketID') ) {
+    if ( scalar(@SQLParameters_keys) && $Param{ParamObject} && $Param{ParamObject}->GetParam( Param => 'TicketID') ) {
     	my %TicketInfo;
     	# get Ticket from cache:
     	if ($Param{LayoutObject}->{TicketObject}->{'Cache::GetTicket'.$Param{ParamObject}->GetParam( Param => 'TicketID')}{''}{1}) {
@@ -969,10 +959,11 @@ so we can solve each requirement with following code:
     	}
     } 
     
-    if ( $Param{ParamObject}->{Query}->{param} ) {
+    if ( $Param{ParamObject} && $Param{ParamObject}->{Query}->{param} ) {
     	# REAL AJAX REQUEST, TAKE PARAMS FROM AJAX REQUEST
             # for each parameter extract value from the ParamObject
             for my $key (@SQLParameters_keys) {
+		print ERRLOG Dumper($Param{ParamObject}->{Query}->{param}) if $DEBUG;
                 if ($Param{ParamObject}->{Query}->{param}->{$key} && $Param{ParamObject}->{Query}->{param}->{$key}[0]) {
                     $SQLParameters_hash{$key} = $Param{ParamObject}->{Query}->{param}->{$key}[0];
                 }
@@ -983,35 +974,38 @@ so we can solve each requirement with following code:
                 else {
                 }
             }
+    } else {
+	print ERRLOG "ParamObject DOES NOT EXIST!!\n" if $DEBUG;
     }
     
     # finally build the original array with only values:
     for my $key (@SQLParameters_keys) {
         # sometimes we got '<key>||<value>' string, so in that case extract key only:
+
+        if ( ! $SQLParameters_hash{$key} ) {
+            # if one parameter is undef, return empty Possible values;
+            return $Self->PossibleValuesError('wrong number of parameters, please check settings. ('.$key.' is missing)');
+        }
+
         $SQLParameters_hash{$key} =~ s/^([^|]+)\|\|(.+)$/$1/;
+
+	print ERRLOG $SQLParameters_hash{$key}."\n\n" if $DEBUG;
 
         push(@SQLParameters_values, $SQLParameters_hash{$key});
         push(@SQLParameters_values_refs, \$SQLParameters_hash{$key});
 
-        if ( ! $SQLParameters_hash{$key} ) {
-            # if one parameter is undef, return empty Possible values;
-            return \%PossibleValues;
-        }
     }
 
     if (!(($Param{DynamicFieldConfig}->{Config}->{Query} =~ tr/?//) eq scalar(@SQLParameters_values))) {
         return $Self->PossibleValuesError('wrong number of parameters, please check settings.');
     }
 
-#print ERRLOG Dumper(\@SQLParameters_values);
-#close ERRLOG;
-
     my $PossibleValues_ref = $Self->{CacheObject}->Get(
         Type	=> 'Hash',
         Key	=> $Param{DynamicFieldConfig}->{Name} . join('', @SQLParameters_values),
     );
 
-    if ($PossibleValues_ref) {
+    if ($PossibleValues_ref) { # we got the values in cache
         %PossibleValues = %{ $PossibleValues_ref };
     }
     else {
@@ -1062,6 +1056,11 @@ so we can solve each requirement with following code:
             @row = $sth->fetchrow_array;        
         }
 
+        print ERRLOG ":::Extracted from DB:::\n" if $DEBUG;
+	print ERRLOG Dumper(@row) if $DEBUG;
+	print ERRLOG "::::::::::::::::::::::::::\n" if $DEBUG;
+	close ERRLOG if $DEBUG;
+
         # cicle fetched rows from DB
         while (@row) {
             my $line = '';
@@ -1078,7 +1077,7 @@ so we can solve each requirement with following code:
             }
 
             $line = substr($line, 0, -1 * length($Param{DynamicFieldConfig}->{Config}->{Separator}));
-            if ($Param{DynamicFieldConfig}->{Config}->{StoreValue} eq "1") {
+            if ($Param{DynamicFieldConfig}->{Config}->{StoreValue} && $Param{DynamicFieldConfig}->{Config}->{StoreValue} eq "1") {
                 %PossibleValues = ( %PossibleValues, $row[0]."||".$line => $line);
             }
             else {
@@ -1106,7 +1105,6 @@ so we can solve each requirement with following code:
             TTL		=> $Param{DynamicFieldConfig}->{CacheTTL} || 360,
         );
     }
-    #close ERRLOG;
 
     $Param{DynamicFieldConfig}->{Config}->{PossibleValues} = \%PossibleValues;
     # retrun the possible values hash as a reference
