@@ -228,8 +228,15 @@
                             </p>
                         </div>
                         <div class="Clear"></div>
- 
-                       <div class="Clear"></div>
+                        <div class="Clear"></div>
+                        <label for="DisplayErrors">$Text{"DEBUG: Display Errors in Form"}:</label>
+                        <div class="Field">
+                            $Data{"DisplayErrors"}
+                            <p class="FieldExplanation">$Text{"Activate this option to enable live debug output in fields."}
+                            </p>
+                        </div>
+                        <div class="Clear"></div>
+                        <div class="Clear"></div>
 
                     </fieldset>
                 </div>

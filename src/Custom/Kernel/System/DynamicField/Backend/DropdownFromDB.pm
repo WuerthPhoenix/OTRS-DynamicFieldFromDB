@@ -257,6 +257,15 @@ sub EditFieldRender {
         Class        => $FieldClass,
         HTMLQuote    => 1,
     );
+    
+    if ($FieldConfig->{DisplayErrors}) {
+    	my $DivID = $FieldName . 'Warning';
+    	
+    	# for client side validation
+        $HTMLString .= <<"EOF";
+    <div style="color:red">\$Text{"[Debug mode]"}</div>
+EOF
+    }    
 
     if ( $Param{Mandatory} ) {
         my $DivID = $FieldName . 'Error';
@@ -853,9 +862,11 @@ sub ObjectMatch {
 }
 
 sub PossibleValuesError {
-    my ( $Self, $message ) = @_;
+    my ( $Self, $message, $displayerror) = @_;
     my %PossibleValuesError;
-    %PossibleValuesError = ( '-' => 'ERROR: '.$message );
+    my $ErrorMessage = '';
+    $ErrorMessage = 'ERROR: '.$message if $displayerror;
+    %PossibleValuesError = ( '-' => $ErrorMessage );
     return \%PossibleValuesError;
 }
 
@@ -864,6 +875,9 @@ sub AJAXPossibleValuesGet {
 
     ## ENABLE FOR DEBUG: ##
     my $DEBUG = 0;
+    
+    ## set displayerror
+    my $DISPLAYERRORS = $Param{DynamicFieldConfig}->{Config}->{DisplayErrors} || 0;
 
     use Data::Dumper;
     open ERRLOG, '>>/tmp/DF_'.$Param{DynamicFieldConfig}->{Name}.'.log' if $DEBUG;
@@ -963,7 +977,7 @@ so we can solve each requirement with following code:
     	# REAL AJAX REQUEST, TAKE PARAMS FROM AJAX REQUEST
             # for each parameter extract value from the ParamObject
             for my $key (@SQLParameters_keys) {
-		print ERRLOG Dumper($Param{ParamObject}->{Query}->{param}) if $DEBUG;
+                print ERRLOG Dumper($Param{ParamObject}->{Query}->{param}) if $DEBUG;
                 if ($Param{ParamObject}->{Query}->{param}->{$key} && $Param{ParamObject}->{Query}->{param}->{$key}[0]) {
                     $SQLParameters_hash{$key} = $Param{ParamObject}->{Query}->{param}->{$key}[0];
                 }
@@ -975,7 +989,7 @@ so we can solve each requirement with following code:
                 }
             }
     } else {
-	print ERRLOG "ParamObject DOES NOT EXIST!!\n" if $DEBUG;
+        print ERRLOG "ParamObject DOES NOT EXIST!!\n" if $DEBUG;
     }
     
     # finally build the original array with only values:
@@ -984,12 +998,12 @@ so we can solve each requirement with following code:
 
         if ( ! $SQLParameters_hash{$key} ) {
             # if one parameter is undef, return empty Possible values;
-            return $Self->PossibleValuesError('wrong number of parameters, please check settings. ('.$key.' is missing)');
+            return $Self->PossibleValuesError('wrong number of parameters, please check settings. ('.$key.' is missing)', $DISPLAYERRORS);
         }
 
         $SQLParameters_hash{$key} =~ s/^([^|]+)\|\|(.+)$/$1/;
 
-	print ERRLOG $SQLParameters_hash{$key}."\n\n" if $DEBUG;
+        print ERRLOG $SQLParameters_hash{$key}."\n\n" if $DEBUG;
 
         push(@SQLParameters_values, $SQLParameters_hash{$key});
         push(@SQLParameters_values_refs, \$SQLParameters_hash{$key});
@@ -997,7 +1011,7 @@ so we can solve each requirement with following code:
     }
 
     if (!(($Param{DynamicFieldConfig}->{Config}->{Query} =~ tr/?//) eq scalar(@SQLParameters_values))) {
-        return $Self->PossibleValuesError('wrong number of parameters, please check settings.');
+        return $Self->PossibleValuesError('wrong number of parameters, please check settings.', $DISPLAYERRORS);
     }
 
     my $PossibleValues_ref = $Self->{CacheObject}->Get(
@@ -1019,7 +1033,7 @@ so we can solve each requirement with following code:
 
     	# if no query specified quit:
         if ( !$Param{DynamicFieldConfig}->{Config}->{Query} || $Param{DynamicFieldConfig}->{Config}->{Query} eq '' ) {
-            return $Self->PossibleValuesError('no query specified, please check settings.');
+            return $Self->PossibleValuesError('no query specified, please check settings.', $DISPLAYERRORS);
         }
 
         ### SET DEFAULT SETTINGS
@@ -1030,14 +1044,14 @@ so we can solve each requirement with following code:
         ### END SET DEFAULT SETTINGS
 
         my @row;
-	my $sth;
-	my $dbh;
+        my $sth;
+        my $dbh;
 
         # use local DB Object if no DBI string is specified.
-	if ( !$Param{DynamicFieldConfig}->{Config}->{DBIstring} ) {
+        if ( !$Param{DynamicFieldConfig}->{Config}->{DBIstring} ) {
             $Self->{DBObject}->Prepare(
                 SQL => $Param{DynamicFieldConfig}->{Config}->{Query},
-		Bind => \@SQLParameters_values_refs,
+                Bind => \@SQLParameters_values_refs,
             );
 
             #fetch first row
@@ -1045,7 +1059,7 @@ so we can solve each requirement with following code:
 
         } else {
             $dbh = DBI->connect($Param{DynamicFieldConfig}->{Config}->{DBIstring}, $Param{DynamicFieldConfig}->{Config}->{DBIuser}, $Param{DynamicFieldConfig}->{Config}->{DBIpass},
-                              { PrintError => 0, AutoCommit => 0, HandleError => \&PossibleValuesError }) or return $Self->PossibleValuesError("could not connect to DB: $DBI::errstr");
+                              { PrintError => 0, AutoCommit => 0, HandleError => \&PossibleValuesError }) or return $Self->PossibleValuesError("could not connect to DB: $DBI::errstr", $DISPLAYERRORS);
         
             $dbh->{'mysql_enable_utf8'} = 1;
     
@@ -1057,9 +1071,9 @@ so we can solve each requirement with following code:
         }
 
         print ERRLOG ":::Extracted from DB:::\n" if $DEBUG;
-	print ERRLOG Dumper(@row) if $DEBUG;
-	print ERRLOG "::::::::::::::::::::::::::\n" if $DEBUG;
-	close ERRLOG if $DEBUG;
+        print ERRLOG Dumper(@row) if $DEBUG;
+        print ERRLOG "::::::::::::::::::::::::::\n" if $DEBUG;
+        close ERRLOG if $DEBUG;
 
         # cicle fetched rows from DB
         while (@row) {

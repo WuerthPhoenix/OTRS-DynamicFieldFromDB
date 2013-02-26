@@ -229,7 +229,6 @@ sub EditFieldRender {
     # set validation class for maximum characters
     $FieldClass .= ' Validate_MaxLength';
 
-    #$Value = 'BLABLABLA';
     # create field HTML
     # the XHTML definition does not support maxlenght attribute for a textarea field, therefore
     # is nedded to be set by JS code (otherwise wc3 validator will complaint about it)
@@ -262,6 +261,20 @@ EOF
     <div id="$DivID" class="TooltipErrorMessage">
         <p>
             \$Text{"The field content is too long! Maximum size is $Self->{MaxLength} characters."}
+        </p>
+    </div>
+EOF
+    }
+
+    if ($FieldConfig->{DisplayErrors}) {
+    	my $DivID = $FieldName . 'Warning';
+    	
+    	# for client side validation
+        $HTMLString .= <<"EOF";
+
+    <div id="$DivID" class="TooltipErrorMessage">
+        <p>
+            \$Text{"[Debug mode]"}
         </p>
     </div>
 EOF

@@ -66,7 +66,7 @@
 
                                 <label class="Mandatory" for="FieldOrder"><span class="Marker">*</span> $Text{"Field order"}:</label>
                                 <div class="Field">
-                                    $Data{"DynamicFieldOrderSrtg"}
+                                    $Data{"DynamicFieldOrderStrg"}
                                     <div id="FieldOrderError" class="TooltipErrorMessage"><p>$Text{"This field is required and must be numeric."}</p></div>
                                     <div id="FieldOrderServerError" class="TooltipErrorMessage"><p>$Text{"$Data{"FieldOrderServerErrorMessage"}"}</p></div>
                                     <p class="FieldExplanation">$Text{"This is the order in which this field will be shown on the screens where is active."}</p>
@@ -179,7 +179,7 @@
                                 $Text{"Example without parameters"}: SELECT id, name FROM table
                             </p>
                         </div>
-                         <div class="SpacingTop"></div>
+                        <div class="Clear"></div>
                         <label for="StoreValue">$Text{"Store Key and Value in DB"}:</label>
                         <div class="Field">
                             $Data{"StoreValue"}
@@ -248,6 +248,14 @@
                                 $Text{"Specify the cache validity in seconds. Consider that only queries with identical parameters are cached."}
                                 <br/>
                                $Text{"Example"}: 360
+                            </p>
+                        </div>
+                        <div class="Clear"></div>
+                        <div class="Clear"></div>
+                        <label for="DisplayErrors">$Text{"DEBUG: Display Errors in Form"}:</label>
+                        <div class="Field">
+                            $Data{"DisplayErrorsStrg"}
+                            <p class="FieldExplanation">$Text{"Activate this option to enable live debug output in fields."}
                             </p>
                         </div>
                         <div class="Clear"></div>

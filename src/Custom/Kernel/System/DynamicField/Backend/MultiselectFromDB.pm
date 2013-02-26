@@ -290,6 +290,20 @@ sub EditFieldRender {
         HTMLQuote    => 1,
         Multiple     => 1,
     );
+    
+    if ($FieldConfig->{DisplayErrors}) {
+    	my $DivID = $FieldName . 'Warning';
+    	
+    	# for client side validation
+        $HTMLString .= <<"EOF";
+
+    <div id="$DivID" class="TooltipErrorMessage">
+        <p>
+            \$Text{"[Debug mode]"}
+        </p>
+    </div>
+EOF
+    }
 
     if ( $Param{Mandatory} ) {
         my $DivID = $FieldName . 'Error';

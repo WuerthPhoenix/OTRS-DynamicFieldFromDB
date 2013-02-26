@@ -172,7 +172,7 @@ sub _AddAction {
     for my $ConfigParam (
         qw(
         ObjectType ObjectTypeName FieldType FieldTypeName DefaultValue PossibleNone
-        TranslatableValues ValidID Link Query VisualQuery Parameters DBIstring DBIuser DBIpass Separator CacheTTL
+        TranslatableValues ValidID Link Query VisualQuery Parameters DBIstring DBIuser DBIpass Separator CacheTTL DisplayErrors
         )
         )
     {
@@ -206,15 +206,16 @@ sub _AddAction {
         PossibleNone       => $GetParam{PossibleNone},
         TranslatableValues => $GetParam{TranslatableValues},
         Link               => $GetParam{Link},
-	Query		   => $GetParam{Query},
-	StoreValue	   => $GetParam{StoreValue},
-	VisualQuery	   => $GetParam{VisualQuery},
-	Parameters	   => $GetParam{Parameters},
-	DBIstring	   => $GetParam{DBIstring},
-	DBIuser		   => $GetParam{DBIuser},
-	DBIpass		   => $GetParam{DBIpass},
-	Separator	   => $GetParam{Separator},
-	CacheTTL	   => $GetParam{CacheTTL},
+        Query		   => $GetParam{Query},
+        StoreValue	   => $GetParam{StoreValue},
+        VisualQuery	   => $GetParam{VisualQuery},
+        Parameters	   => $GetParam{Parameters},
+        DBIstring	   => $GetParam{DBIstring},
+        DBIuser		   => $GetParam{DBIuser},
+        DBIpass		   => $GetParam{DBIpass},
+        Separator	   => $GetParam{Separator},
+        CacheTTL	   => $GetParam{CacheTTL},
+        DisplayErrors  => $GetParam{DisplayErrors},
     };
 
     # create a new field
@@ -299,15 +300,16 @@ sub _Change {
 
         # set Link
         $Config{Link} = $DynamicFieldData->{Config}->{Link};
-	$Config{Query} = $DynamicFieldData->{Config}->{Query};
-	$Config{StoreValue} = $DynamicFieldData->{Config}->{StoreValue};
-	$Config{VisualQuery} = $DynamicFieldData->{Config}->{VisualQuery};
-	$Config{Parameters} = $DynamicFieldData->{Config}->{Parameters};
-	$Config{DBIstring} = $DynamicFieldData->{Config}->{DBIstring};
-	$Config{DBIuser} = $DynamicFieldData->{Config}->{DBIuser};
-	$Config{DBIpass} = $DynamicFieldData->{Config}->{DBIpass};
-	$Config{Separator} = $DynamicFieldData->{Config}->{Separator};
-	$Config{CacheTTL} = $DynamicFieldData->{Config}->{CacheTTL};
+        $Config{Query} = $DynamicFieldData->{Config}->{Query};
+        $Config{StoreValue} = $DynamicFieldData->{Config}->{StoreValue};
+        $Config{VisualQuery} = $DynamicFieldData->{Config}->{VisualQuery};
+        $Config{Parameters} = $DynamicFieldData->{Config}->{Parameters};
+        $Config{DBIstring} = $DynamicFieldData->{Config}->{DBIstring};
+        $Config{DBIuser} = $DynamicFieldData->{Config}->{DBIuser};
+        $Config{DBIpass} = $DynamicFieldData->{Config}->{DBIpass};
+        $Config{Separator} = $DynamicFieldData->{Config}->{Separator};
+        $Config{CacheTTL} = $DynamicFieldData->{Config}->{CacheTTL};
+        $Config{DisplayErrors} = $DynamicFieldData->{Config}->{DisplayErrors};
     }
 
     return $Self->_ShowScreen(
@@ -390,7 +392,7 @@ sub _ChangeAction {
     for my $ConfigParam (
         qw(
         ObjectType ObjectTypeName FieldType FieldTypeName DefaultValue PossibleNone
-        TranslatableValues ValidID Link Query StoreValue VisualQuery Parameters DBIstring DBIuser DBIpass Separator CacheTTL
+        TranslatableValues ValidID Link Query StoreValue VisualQuery Parameters DBIstring DBIuser DBIpass Separator CacheTTL DisplayErrors
         )
         )
     {
@@ -437,15 +439,16 @@ sub _ChangeAction {
         PossibleNone       => $GetParam{PossibleNone},
         TranslatableValues => $GetParam{TranslatableValues},
         Link               => $GetParam{Link},
-	Query		   => $GetParam{Query},
-	StoreValue	   => $GetParam{StoreValue},
-	VisualQuery	   => $GetParam{VisualQuery},
-	Parameters	   => $GetParam{Parameters},
-	DBIstring	   => $GetParam{DBIstring},
-	DBIuser		   => $GetParam{DBIuser},
-	DBIpass		   => $GetParam{DBIpass},
-	Separator	   => $GetParam{Separator},
-	CacheTTL	   => $GetParam{CacheTTL},
+        Query				=> $GetParam{Query},
+        StoreValue	   		=> $GetParam{StoreValue},
+        VisualQuery	   		=> $GetParam{VisualQuery},
+        Parameters	   		=> $GetParam{Parameters},
+        DBIstring			=> $GetParam{DBIstring},
+        DBIuser				=> $GetParam{DBIuser},
+        DBIpass				=> $GetParam{DBIpass},
+        Separator			=> $GetParam{Separator},
+        CacheTTL			=> $GetParam{CacheTTL},
+        DisplayErrors		=> $GetParam{DisplayErrors},
     };
 
     # update dynamic field (FieldType and ObjectType cannot be changed; use old values)
@@ -510,7 +513,7 @@ sub _ShowScreen {
         push @DynamicfieldOrderList, $LastOrderNumber;
     }
 
-    my $DynamicFieldOrderSrtg = $Self->{LayoutObject}->BuildSelection(
+    my $DynamicFieldOrderStrg = $Self->{LayoutObject}->BuildSelection(
         Data          => \@DynamicfieldOrderList,
         Name          => 'FieldOrder',
         SelectedValue => $Param{FieldOrder} || 1,
@@ -636,6 +639,19 @@ unless(! $@)
         Class      => 'W50pc',
     );
 
+    my $DisplayErrors = $Param{DisplayErrors} || '0';
+
+    # create translatable values option list
+    my $DisplayErrorsStrg = $Self->{LayoutObject}->BuildSelection(
+        Data => {
+            0 => 'No',
+            1 => 'Yes',
+        },
+        Name       => 'DisplayErrors',
+        SelectedID => $DisplayErrors,
+        Class      => 'W50pc',
+    );
+
 
     my $Link = $Param{Link} || '';
     my $Query = $Param{Query} || '';
@@ -647,28 +663,30 @@ unless(! $@)
     my $Separator = $Param{Separator} || ',';
     my $CacheTTL = $Param{CacheTTL} || '360';
 
+
     # generate output
     $Output .= $Self->{LayoutObject}->Output(
         TemplateFile => 'AdminDynamicFieldDropdownFromDB',
         Data         => {
             %Param,
             ValidityStrg           => $ValidityStrg,
-            DynamicFieldOrderSrtg  => $DynamicFieldOrderSrtg,
+            DynamicFieldOrderStrg  => $DynamicFieldOrderStrg,
 #            ValueCounter           => $ValueCounter,
 #            DefaultValueStrg       => $DefaultValueStrg,
             PossibleNoneStrg       => $PossibleNoneStrg,
             TranslatableValuesStrg => $TranslatableValuesStrg,
             Link                   => $Link,
-	    Query		   => $Query,
-	    StoreValue		   => $StoreValueStrg,
-	    VisualQuery		   => $VisualQuery,
-	    Parameters		   => $Parameters,
-	    DBIstring		   => $DBIstring,
-	    DBIuser		   => $DBIuser,
-	    DBIpass		   => $DBIpass,
-	    Separator		   => $Separator,
-	    CacheTTL		   => $CacheTTL,
-            }
+            Query		   => $Query,
+            StoreValue		   => $StoreValueStrg,
+            VisualQuery		   => $VisualQuery,
+            Parameters		   => $Parameters,
+            DBIstring		   => $DBIstring,
+            DBIuser		   => $DBIuser,
+            DBIpass		   => $DBIpass,
+            Separator		   => $Separator,
+            CacheTTL		   => $CacheTTL,
+            DisplayErrorsStrg	=> $DisplayErrorsStrg,
+        }
     );
 
     $Output .= $Self->{LayoutObject}->Footer();

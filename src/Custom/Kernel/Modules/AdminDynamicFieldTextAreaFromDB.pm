@@ -232,12 +232,13 @@ sub _AddAction {
         PossibleNone       => $GetParam{PossibleNone},
         TranslatableValues => $GetParam{TranslatableValues},
         Link               => $GetParam{Link},
-	Query		   => $GetParam{Query},
-	Parameters	   => $GetParam{Parameters},
-	DBIstring	   => $GetParam{DBIstring},
-	DBIuser		   => $GetParam{DBIuser},
-	DBIpass		   => $GetParam{DBIpass},
-	CacheTTL	   => $GetParam{CacheTTL},
+        Query				=> $GetParam{Query},
+        Parameters			=> $GetParam{Parameters},
+        DBIstring			=> $GetParam{DBIstring},
+        DBIuser				=> $GetParam{DBIuser},
+        DBIpass				=> $GetParam{DBIpass},
+        CacheTTL			=> $GetParam{CacheTTL},
+        DisplayErrors		=> $GetParam{DisplayErrors},
     };
 
     # create a new field
@@ -322,12 +323,13 @@ sub _Change {
 
         # set Link
         $Config{Link} = $DynamicFieldData->{Config}->{Link};
-	$Config{Query} = $DynamicFieldData->{Config}->{Query} || 'insert query here';
-	$Config{Parameters} = $DynamicFieldData->{Config}->{Parameters};
-	$Config{DBIstring} = $DynamicFieldData->{Config}->{DBIstring};
-	$Config{DBIuser} = $DynamicFieldData->{Config}->{DBIuser};
-	$Config{DBIpass} = $DynamicFieldData->{Config}->{DBIpass};
-	$Config{CacheTTL} = $DynamicFieldData->{Config}->{CacheTTL};
+        $Config{Query} = $DynamicFieldData->{Config}->{Query} || 'insert query here';
+        $Config{Parameters} = $DynamicFieldData->{Config}->{Parameters};
+        $Config{DBIstring} = $DynamicFieldData->{Config}->{DBIstring};
+        $Config{DBIuser} = $DynamicFieldData->{Config}->{DBIuser};
+        $Config{DBIpass} = $DynamicFieldData->{Config}->{DBIpass};
+        $Config{CacheTTL} = $DynamicFieldData->{Config}->{CacheTTL};
+        $Config{DisplayErrors} = $DynamicFieldData->{Config}->{DisplayErrors};
     }
 
     return $Self->_ShowScreen(
@@ -344,15 +346,6 @@ sub _Change {
 
 sub _ChangeAction {
     my ( $Self, %Param ) = @_;
-
-use Data::Dumper;
-open ERRLOG, '>>/tmp/Query.log';
-print ERRLOG Dumper(\%Param);
-close ERRLOG;
-
-#
-
-
 
     my %Errors;
     my %GetParam;
@@ -492,12 +485,13 @@ close ERRLOG;
         PossibleNone       => $GetParam{PossibleNone},
         TranslatableValues => $GetParam{TranslatableValues},
         Link               => $GetParam{Link},
-	Query		   => $GetParam{Query},
-	Parameters	   => $GetParam{Parameters},
-	DBIstring	   => $GetParam{DBIstring},
-	DBIuser		   => $GetParam{DBIuser},
-	DBIpass		   => $GetParam{DBIpass},
-	CacheTTL	   => $GetParam{CacheTTL},
+        Query				=> $GetParam{Query},
+        Parameters			=> $GetParam{Parameters},
+        DBIstring			=> $GetParam{DBIstring},
+        DBIuser				=> $GetParam{DBIuser},
+        DBIpass				=> $GetParam{DBIpass},
+        CacheTTL			=> $GetParam{CacheTTL},
+        DisplayErrors		=> $GetParam{DisplayErrors},
     };
 
     # update dynamic field (FieldType and ObjectType cannot be changed; use old values)
@@ -715,6 +709,19 @@ sub _ShowScreen {
         Class      => 'W50pc',
     );
 
+    my $DisplayErrors = $Param{DisplayErrors} || '0';
+
+    # create translatable values option list
+    my $DisplayErrorsStrg = $Self->{LayoutObject}->BuildSelection(
+        Data => {
+            0 => 'No',
+            1 => 'Yes',
+        },
+        Name       => 'DisplayErrors',
+        SelectedID => $DisplayErrors,
+        Class      => 'W50pc',
+    );
+
     my $Link = $Param{Link} || '';
     my $Query = $Param{Query} || '';
     my $Parameters = $Param{Parameters} || '';
@@ -735,12 +742,13 @@ sub _ShowScreen {
             PossibleNoneStrg       => $PossibleNoneStrg,
             TranslatableValuesStrg => $TranslatableValuesStrg,
             Link                   => $Link,
-	    Query		   => $Query,
-	    Parameters		   => $Parameters,
-	    DBIstring		   => $DBIstring,
-	    DBIuser		   => $DBIuser,
-	    DBIpass		   => $DBIpass,
-	    CacheTTL		   => $CacheTTL,
+            Query					=> $Query,
+            Parameters				=> $Parameters,
+            DBIstring				=> $DBIstring,
+            DBIuser					=> $DBIuser,
+            DBIpass					=> $DBIpass,
+            CacheTTL				=> $CacheTTL,
+            DisplayErrors			=> $DisplayErrorsStrg,
             }
     );
 

@@ -157,7 +157,7 @@
                         <div class="Clear"></div>
 			<label for="Query">$Text{"Query"}:</label>
                         <div class="Field">
-                            <input id="Query" class="W50pc" type="text" maxlength="500" value="$QData{"Query"}" name="Query"/>
+                            <textarea id="Query" class="W50pc" type="textarea" rows="5" maxlength="500" name="Query">$QData{"Query"}</textarea>
                             <p class="FieldExplanation">
                                 $Text{"Here you can specify the query to execute for the items in the DynamicField. Put a ? Placeholder for each Parameter."}
 				<br/>
@@ -192,6 +192,14 @@
                         </div>
  
                       <div class="Clear"></div>
+                      <div class="Clear"></div>
+                        <label for="DisplayErrors">$Text{"DEBUG: Display Errors in Form"}:</label>
+                        <div class="Field">
+                            $Data{"DisplayErrors"}
+                            <p class="FieldExplanation">$Text{"Activate this option to enable live debug output in fields."}
+                            </p>
+                        </div>
+                        <div class="Clear"></div>
 
                     </fieldset>
                 </div>
