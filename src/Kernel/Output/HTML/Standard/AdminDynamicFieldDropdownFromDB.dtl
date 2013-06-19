@@ -168,7 +168,7 @@
                         <div class="Clear"></div>
 			<label for="Query">$Text{"Query"}:</label>
                         <div class="Field">
-                            <textarea id="Query" class="W50pc" type="textarea" rows="5" maxlength="500" name="Query">$QData{"Query"}</textarea>
+                            <textarea id="Query" class="W50pc" type="textarea" rows="5" maxlength="1500" name="Query">$QData{"Query"}</textarea>
                             <p class="FieldExplanation">
                                 $Text{"Here you can specify the query to execute for the items in the DynamicField. Put a ? Placeholder for each Parameter."}
 				<br/>

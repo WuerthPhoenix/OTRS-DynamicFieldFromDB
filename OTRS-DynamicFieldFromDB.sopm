@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <otrs_package version="1.0">
     <Name>Wuerth Phoenix DynamicField From DB</Name>
-    <Version>1.1.2</Version>
-    <Framework>3.1.x</Framework>
+    <Version>1.2.0</Version>
+    <Framework>3.2.x</Framework>
     <Vendor>Wuerth Phoenix S.R.L.</Vendor>
     <URL>http://www.wuerth-phoenix.com/</URL>
     <License>GNU GENERAL PUBLIC LICENSE Version 2, June 1991</License>
