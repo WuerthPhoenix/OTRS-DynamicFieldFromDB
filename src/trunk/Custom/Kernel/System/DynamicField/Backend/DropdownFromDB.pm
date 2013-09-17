@@ -67,7 +67,6 @@ sub new {
         = Kernel::System::DynamicField::Backend::BackendCommon->new( %{$Self} );
 
     $Self->{CacheObject} = Kernel::System::Cache->new(%Param);
-    $Self->{DBObject} = Kernel::System::DB->new(%Param);
 
     return $Self;
 }
@@ -499,6 +498,8 @@ sub DisplayValueRender {
         if ( $Param{DynamicFieldConfig}->{Config}->{DBIstring} ) {
             $dbh->disconnect;
         }
+
+        $Value = $line;
     
         #$Value = $line; WP - DENI 20130825 
 
@@ -983,7 +984,68 @@ so we can solve each requirement with following code:
     		}
     	}
     } 
-    
+
+    my %LinkTicketInfo;
+    my %LinkTicketValues;
+    if ( $Param{ParamObject} && $Param{ParamObject}->GetParam( Param => 'LinkTicketID') ) {
+        if ($Param{LayoutObject}->{TicketObject}->{'Cache::GetTicket'.$Param{ParamObject}->GetParam( Param => 'LinkTicketID')}{''}{1}) {
+            %LinkTicketInfo = %{$Param{LayoutObject}->{TicketObject}->{'Cache::GetTicket'.$Param{ParamObject}->GetParam( Param => 'LinkTicketID')}{''}{1}};
+        } else {
+            my $EncodeObject = Kernel::System::Encode->new(
+               ConfigObject => $Param{ParamObject}->{ConfigObject},
+           );
+           my $TimeObject = Kernel::System::Time->new(
+               ConfigObject => $Param{ParamObject}->{ConfigObject},
+               LogObject    => $Param{ParamObject}->{LogObject},
+           );
+           my $DBObject = Kernel::System::DB->new(
+               ConfigObject => $Param{ParamObject}->{ConfigObject},
+               EncodeObject => $EncodeObject,
+               LogObject    => $Param{ParamObject}->{LogObject},
+               MainObject   => $Param{ParamObject}->{MainObject},
+           );
+           my $TicketObject = Kernel::System::Ticket->new(
+               ConfigObject       => $Param{ParamObject}->{ConfigObject},
+               LogObject          => $Param{ParamObject}->{LogObject},
+               DBObject           => $DBObject,
+               MainObject         => $Param{ParamObject}->{MainObject},
+               TimeObject         => $TimeObject,
+               EncodeObject       => $EncodeObject,
+           );
+           %LinkTicketInfo = $TicketObject->TicketGet(
+               TicketID      => $Param{ParamObject}->GetParam( Param => 'LinkTicketID'),
+               DynamicFields => 1,         # Optional, default 0. To include the dynamic field values for this ticket on the return structure.
+               UserID        => 0,
+           );
+        }
+        print ERRLOG "Got ticket id; performing query to get stored values\n" if $DEBUG;    
+
+        #ATOR - get stored values in linked ticket
+        my $query = 'SELECT value_text from dynamic_field_value WHERE object_id = ? AND field_id = ?';
+        my $FieldID = $Param{DynamicFieldConfig}->{ID};
+        my $ObjectID = $Param{ParamObject}->GetParam( Param => 'LinkTicketID');
+        $Self->{DBObject}->Prepare(
+                SQL => $query,
+                #Bind => [ \$Param{ParamObject}->GetParam( Param => 'LinkTicketID'), \$Param{DynamicFieldConfig}->{ID} ],
+                Bind => [\$ObjectID, \$FieldID],
+        );
+        my @row = $Self->{DBObject}->FetchrowArray();
+        while (@row) { 
+            my %Value;
+            #check if value contains ||, if so split key=>value
+            if ($row[0] =~ /\|\|/ ) {
+                my @splitted = split('||', $row[0]);
+                $Value{$splitted[0]} = $splitted[1];
+            } else {
+                $Value{$row[0]} = $row[0];
+            }  
+            %LinkTicketValues = ( %LinkTicketValues, %Value);
+            #next row
+            @row = $Self->{DBObject}->FetchrowArray();
+            }
+        #print ERRLOG "LinkTicketID : $FieldID\n";
+    } 
+
     if ( $Param{ParamObject} && $Param{ParamObject}->{Query}->{param} ) {
     	# REAL AJAX REQUEST, TAKE PARAMS FROM AJAX REQUEST
             # for each parameter extract value from the ParamObject
@@ -997,9 +1059,17 @@ so we can solve each requirement with following code:
                     print ERRLOG '$Param{ParamObject}->{Query}->{param}->{ElementChanged}[0]' if $DEBUG;
                     print ERRLOG Dumper(\$Param{ParamObject}->{Query}->{param}->{ElementChanged}[0]) if $DEBUG;
                     $query_needed = 1;
+<<<<<<< HEAD:src/trunk/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
 	            my @val = ( '+' );
                     $Param{ParamObject}->{Query}->{param}->{'DynamicField_'.$Param{DynamicFieldConfig}->{Name}} = \@val;
  	        }
+=======
+                    print ERRLOG '$Param{ParamObject}->{Query}->{param}->{ElementChanged}[0]' if $DEBUG;
+                    print ERRLOG Dumper(\$Param{ParamObject}->{Query}->{param}->{ElementChanged}[0]) if $DEBUG;
+                    my @val = ( '+' );
+                    $Param{ParamObject}->{Query}->{param}->{'DynamicField_'.$Param{DynamicFieldConfig}->{Name}} = \@val;
+                }
+>>>>>>> 856da230201f9c802aa82ed3b2d4351cd0abb13a:src/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
                 else {
                 }
             }
@@ -1136,6 +1206,9 @@ so we can solve each requirement with following code:
         );
     }
 
+    # add values from Linked Ticket as possible values (so it will be selected on ticket split)
+    %PossibleValues = (%PossibleValues, %LinkTicketValues);
+
     $Param{DynamicFieldConfig}->{Config}->{PossibleValues} = \%PossibleValues;
     # retrun the possible values hash as a reference
     return \%PossibleValues;
@@ -1150,6 +1223,7 @@ sub HistoricalValuesGet {
         ValueType => 'Text',
     );
 
+<<<<<<< HEAD:src/trunk/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
     # BINI - 27.03.2013
     #
     # Remove "<val>||" from historical values used in search form
@@ -1162,6 +1236,20 @@ sub HistoricalValuesGet {
       }
     }
     # BINI
+=======
+    # BINI - 27.03.2013                                                                                                                                      
+    #                                                                                                                                                        
+    # Remove "<key >||" from historical values used in search form                                                                                            
+    #                                                                                                                                                        
+    if ($Param{DynamicFieldConfig}->{Config}->{StoreValue} eq "1") {                                                                                         
+      if ( IsHashRefWithData($HistoricalValues) ) {                                                                                                          
+        for my $Key ( sort keys %{$HistoricalValues} ) {                                                                                                     
+            $HistoricalValues->{$Key} =~ s/^([^|]+)\|\|(.+)$/$2/;                                                                                            
+        }                                                                                                                                                    
+      }                                                                                                                                                      
+    }                                                                                                                                                        
+    # BINI                                                                                                                                                   
+>>>>>>> 856da230201f9c802aa82ed3b2d4351cd0abb13a:src/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
     #
 
     # retrun the historical values from database
@@ -1173,6 +1261,7 @@ sub ValueLookup {
 
     my $Value = defined $Param{Key} ? $Param{Key} : '';
 
+<<<<<<< HEAD:src/trunk/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
     # get real values
     my $PossibleValues = $Param{DynamicFieldConfig}->{Config}->{PossibleValues};
 
@@ -1196,6 +1285,10 @@ sub ValueLookup {
             }
         }
     }
+=======
+    # remove the '<key>||' if present
+    $Value =~ s/^([^|]+)\|\|(.+)$/$2/; 
+>>>>>>> 856da230201f9c802aa82ed3b2d4351cd0abb13a:src/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
 
     return $Value;
 }

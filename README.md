@@ -16,6 +16,8 @@ To use full functionalities the OTRS feature Add-on OTRSTicketMaskExtensions is 
 Install
 -------
 Use the OTRS package manager to install the opm file located in the Github repository Downloads or build the opm using the sopm.
+In order to be able to use the DynamicFieldFromDB add the needed parameters on each AJAXPossibleValuesGet call like this:
+\# sed -i 's/\\(AJAXPossibleValuesGet(\\)$/\\1%GetParam,ParamObject => \\$Self->{ParamObject},/' /opt/otrs/Custom/Kernel/Modules/AgentTicketPhone.pm
 
 
 Usage
