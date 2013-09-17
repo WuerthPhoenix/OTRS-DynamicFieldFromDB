@@ -977,6 +977,15 @@ sub HistoricalValuesGet {
     return $HistoricalValues;
 }
 
+sub ValueLookup {
+    my ( $Self, %Param ) = @_;
+
+    my $Value = defined $Param{Key} ? $Param{Key} : '';
+
+    return $Value;
+
+}
+
 1;
 
 =back

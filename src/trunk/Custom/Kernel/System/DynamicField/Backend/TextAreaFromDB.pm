@@ -152,7 +152,7 @@ sub SearchSQLGet {
 
     if ( $Operators{ $Param{Operator} } ) {
         my $SQL = " $Param{TableAlias}.value_text $Operators{$Param{Operator}} '";
-        $SQL .= $Self->{DBObject}->Quote( $Param{SearchTerm} ) . "' ";
+        $SQL .= $Self->{DBObject}->Quote( $Param{SearchTerm} ) . "' "; 
         return $SQL;
     }
 
@@ -334,19 +334,95 @@ sub EditFieldValueGet {
 #    }
 
     # USE FOR DEBUGGING PURPOSES
-#use Data::Dumper;
-#open ERRLOG, '>>/tmp/TA_'.$Param{DynamicFieldConfig}->{Name}.'.log';
-#print ERRLOG Dumper($Param{ParamObject}->{Query}->{param});
+my $DEBUG = 0;
+    #
+ use Data::Dumper;
+open ERRLOG, '>>/tmp/TA_'.$Param{DynamicFieldConfig}->{Name}.'.log' if $DEBUG;
+#print ERRLOG Dumper($Param{ParamObject}->{Query}->{param}) if $DEBUG;
+
+print ERRLOG $Param{ParamObject} if $DEBUG;
 #close ERRLOG;
 
     my $query_needed = 0;
 
     my @SQLParameters_values;
+    my @SQLParameters_values_refs;
 
     my @SQLParameters_keys = split(',', $Param{DynamicFieldConfig}->{Config}->{Parameters});
 
+    my %SQLParameters_hash;
     for my $key (@SQLParameters_keys) {
-        push(@SQLParameters_values, $Param{ParamObject}->{Query}->{param}->{$key}[0]);
+        $SQLParameters_hash{$key} = undef;
+    }
+
+    if ( scalar(@SQLParameters_keys) && $Param{ParamObject} && defined $Param{ParamObject} && $Param{ParamObject}->GetParam( Param => 'TicketID') ) {
+    	my %TicketInfo;
+    	# get Ticket from cache:
+    	if ($Param{LayoutObject}->{TicketObject}->{'Cache::GetTicket'.$Param{ParamObject}->GetParam( Param => 'TicketID')}{''}{1}) {
+    		%TicketInfo = %{$Param{LayoutObject}->{TicketObject}->{'Cache::GetTicket'.$Param{ParamObject}->GetParam( Param => 'TicketID')}{''}{1}};
+    	}
+    	else {
+                my $EncodeObject = Kernel::System::Encode->new(
+                    ConfigObject => $Param{ParamObject}->{ConfigObject},
+                );
+                my $TimeObject = Kernel::System::Time->new(
+                    ConfigObject => $Param{ParamObject}->{ConfigObject},
+                    LogObject    => $Param{ParamObject}->{LogObject},
+                );
+                my $DBObject = Kernel::System::DB->new(
+                    ConfigObject => $Param{ParamObject}->{ConfigObject},
+                    EncodeObject => $EncodeObject,
+                    LogObject    => $Param{ParamObject}->{LogObject},
+                    MainObject   => $Param{ParamObject}->{MainObject},
+                );
+                my $TicketObject = Kernel::System::Ticket->new(
+                    ConfigObject       => $Param{ParamObject}->{ConfigObject},
+                    LogObject          => $Param{ParamObject}->{LogObject},
+                    DBObject           => $DBObject,
+                    MainObject         => $Param{ParamObject}->{MainObject},
+                    TimeObject         => $TimeObject,
+                    EncodeObject       => $EncodeObject,
+                );
+                %TicketInfo = $TicketObject->TicketGet(
+                    TicketID      => $Param{ParamObject}->GetParam( Param => 'TicketID'),
+                    DynamicFields => 1,         # Optional, default 0. To include the dynamic field values for this ticket on the return structure.
+                    UserID        => 0,
+                );
+    	}
+
+    	for my $key (@SQLParameters_keys) {
+    		if ($key eq 'SelectedCustomerUser') {
+    			$SQLParameters_hash{$key} = $TicketInfo{CustomerUserID};
+    		}
+    		else {
+    			$SQLParameters_hash{$key} = $TicketInfo{$key};
+    		}
+    	}
+    	print ERRLOG "[Got Ticket info:]\n" if $DEBUG;
+    	print ERRLOG Dumper(\%TicketInfo) if $DEBUG;
+    } 
+ 
+
+
+    for my $key (@SQLParameters_keys) {
+        # WP - BINI
+        # Fix per estrarre i valori puliti dai parametri (es. 2||DATO)
+        # 
+
+
+	if ( $Param{ParamObject}->{Query}->{param}->{$key}[0] ) {
+        	$Param{ParamObject}->{Query}->{param}->{$key}[0] =~ s/^([^|]+)\|\|(.+)$/$1/;
+        	push(@SQLParameters_values, $Param{ParamObject}->{Query}->{param}->{$key}[0]);
+        	push(@SQLParameters_values_refs, \$Param{ParamObject}->{Query}->{param}->{$key}[0]);
+	} elsif ( $SQLParameters_hash{$key} ) {
+		push(@SQLParameters_values,  $SQLParameters_hash{$key});
+		push(@SQLParameters_values_refs, \$SQLParameters_hash{$key});
+	}
+
+
+        
+        # WP - BINI - ex: push(@SQLParameters_values, $Param{ParamObject}->{Query}->{param}->{$key}[0]);
+        
         # if the changed Element is in the parameter list, update data
         if ($Param{ParamObject}->{Query}->{param}->{ElementChanged} and $key eq $Param{ParamObject}->{Query}->{param}->{ElementChanged}[0]) {
                 $query_needed = 1;
@@ -357,52 +433,207 @@ sub EditFieldValueGet {
         }
     }
 
+    
+
 #    print ERRLOG Dumper($Param{ParamObject});
 #    print ERRLOG UNIVERSAL::isa($Param{ParamObject}, 'HASH')." FieldName: $FieldName\n";
 #    close ERRLOG;
+
+    print ERRLOG "Building value\n" if $DEBUG;
 
     if ($Param{ParamObject}->{Query}->{param}->{$FieldName} && $Param{ParamObject}->{Query}->{param}->{$FieldName}[0]) {
         $Value = $Param{ParamObject}->{Query}->{param}->{$FieldName}[0];
     }
 
-    if ($query_needed) {
+#    if ($query_needed and 1) {
+
 
         $Value = $Self->{CacheObject}->Get(
             Type    => 'String',
-            Key     => $Param{DynamicFieldConfig}->{Name} . join('', @SQLParameters_values),
+            Key     => scalar @SQLParameters_values > 0 ? $Param{DynamicFieldConfig}->{Name} . join('', @SQLParameters_values) : $Param{DynamicFieldConfig}->{Name},
         );
 
         if (!$Value) {
 
-            my $dbh = DBI->connect($Param{DynamicFieldConfig}->{Config}->{DBIstring}, $Param{DynamicFieldConfig}->{Config}->{DBIuser}, $Param{DynamicFieldConfig}->{Config}->{DBIpass},
-                { RaiseError => 1, AutoCommit => 0 });
-            my $sth = $dbh->prepare($Param{DynamicFieldConfig}->{Config}->{Query});
-            $sth->execute( @SQLParameters_values );
+	    print ERRLOG "Doing query\n" if $DEBUG;
 
-            my @row;
-            my $counter = 0;
+	    my @row;
+            my $sth;
+            my $dbh;
 
+
+	    my $completeline;
+
+            # use local DB Object if no DBI string is specified.
+            if ( !$Param{DynamicFieldConfig}->{Config}->{DBIstring} ) {
+                $Self->{DBObject}->Prepare(
+                    SQL => $Param{DynamicFieldConfig}->{Config}->{Query},
+                    Bind => \@SQLParameters_values_refs,
+                );
+    
+                #fetch first row
+                @row = $Self->{DBObject}->FetchrowArray();
+    
+            } else {
+                $dbh = DBI->connect($Param{DynamicFieldConfig}->{Config}->{DBIstring}, $Param{DynamicFieldConfig}->{Config}->{DBIuser}, $Param{DynamicFieldConfig}->{Config}->{DBIpass},
+                                  { PrintError => 0, AutoCommit => 0 }) or die;
+            
+                $dbh->{'mysql_enable_utf8'} = 1;
+        
+                $sth = $dbh->prepare($Param{DynamicFieldConfig}->{Config}->{Query});
+                $sth->execute( @SQLParameters_values );
+        
+                # fetch first row
+                @row = $sth->fetchrow_array;        
+            }
+    
+            print ERRLOG ":::Extracted from DB:::\n" if $DEBUG;
+            print ERRLOG Dumper(@row) if $DEBUG;
+            print ERRLOG "::::::::::::::::::::::::::\n" if $DEBUG;
+            close ERRLOG if $DEBUG;
+    
+            # cicle fetched rows from DB
             my $line = '';
+            while (@row) {
 
-            while ( @row = $sth->fetchrow_array ) {
-
+		my $counter = 0;
                 my @names = $sth->{NAME};
+
                 for my $col (@row) {
-                    $line .= $names[0][$counter].": ".$col."\n";
+                    if (!utf8::is_utf8($col)) {
+                        utf8::decode( $col );
+                    }
+#                    if (!$firstRow) { # skip first row 
+#                        $firstRow = 1;
+#                	next;
+#                    }
+
+		    if ( !$Param{DynamicFieldConfig}->{Config}->{DBIstring} ) {
+                        $line .= $col."\n";
+                    } else {
+                    	$line .= $names[0][$counter].": ".$col."\n";
+                    }
                     $counter += 1;
                 }
-            }
+    
+#                if ($Param{DynamicFieldConfig}->{Config}->{StoreValue} && $Param{DynamicFieldConfig}->{Config}->{StoreValue} eq "1") {
+#                    %PossibleValues = ( %PossibleValues, $row[0]."||".$line => $line);
+#                }
+#                else {
+#                    %PossibleValues = ( %PossibleValues, $row[0] => $line );
+#                }
 
-            $Value = $line;
+#	 	$completeline .= $row[0] . ": ". $line;
+   
+                # fetch new row depending on DB connection type
+                if ( !$Param{DynamicFieldConfig}->{Config}->{DBIstring} ) {
+                    @row = $Self->{DBObject}->FetchrowArray();
+                }
+                else {
+                    @row = $sth->fetchrow_array;
+    		if (!@row) {
+                        $dbh->disconnect;
+                    }
+                }
+            }
+    
+	    $Value = $line;    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#            my @row;
+#	    my $sth;
+#	    my $dbh;
+#
+#            my $line = '';
+#
+#	    if ( !$Param{DynamicFieldConfig}->{Config}->{DBIstring} ) {
+#                $Self->{DBObject}->Prepare(
+#                	SQL => $Param{DynamicFieldConfig}->{Config}->{Query},
+#	                Bind => \@SQLParameters_values_refs,
+#            	);
+#
+#                #fetch first row
+#	        @row = $Self->{DBObject}->FetchrowArray();
+#
+#                while ( @row = $Self->{DBObject}->FetchrowArray()) {
+#    
+#                    my @names = $sth->{NAME};
+#                    for my $col (@row) {
+#                        $line .= $names[0][$counter].": ".$col."\n";
+#                        $counter += 1;
+#                    }
+#                }
+#
+#            }
+#            else {
+#                $dbh = DBI->connect($Param{DynamicFieldConfig}->{Config}->{DBIstring}, $Param{DynamicFieldConfig}->{Config}->{DBIuser}, $Param{DynamicFieldConfig}->{Config}->{DBIpass},
+#                    { RaiseError => 1, AutoCommit => 0 });
+#                $sth = $dbh->prepare($Param{DynamicFieldConfig}->{Config}->{Query});
+#                $sth->execute( @SQLParameters_values );
+#    #    STAMPA LA QUERY
+#    #    $Self->{'LogObject'}->Log(
+#    #        'Priority' => 'notice',
+#    #        'Message'  => "$Param{DynamicFieldConfig}->{Config}->{Query}",
+#    #    );
+#    #	    my $found = $sth->fetch();
+#    #	    print ERRLOG "found $found rows\n" if $DEBUG;
+#    
+#                my $counter = 0;
+#    
+#
+#    
+#                while ( @row = $sth->fetchrow_array ) {
+#    
+#                    my @names = $sth->{NAME};
+#                    for my $col (@row) {
+#                        $line .= $names[0][$counter].": ".$col."\n";
+#                        $counter += 1;
+#                    }
+#                }
+#	    }
+    
+#            $Value = $line;
 	
             $Self->{CacheObject}->Set(
                 Type        => 'String',
-                Key         => $Param{DynamicFieldConfig}->{Name} . join('', @SQLParameters_values),
+            	Key	    => scalar @SQLParameters_values > 0 ? $Param{DynamicFieldConfig}->{Name} . join('', @SQLParameters_values) : $Param{DynamicFieldConfig}->{Name},
                 Value       => $Value,
                 TTL         => 360,
             );
         }
-    }
+	else {
+		print ERRLOG "Query not needed, using cache\n" if $DEBUG;
+	}
+#    }
+    close ERRLOG if $DEBUG;
 
     return $Value;
 }
@@ -725,6 +956,40 @@ sub HistoricalValuesGet {
     # retrun the historical values from database
     return $HistoricalValues;
 }
+
+
+sub ValueLookup {
+    my ( $Self, %Param ) = @_;
+
+    my $Value = defined $Param{Key} ? $Param{Key} : '';
+
+    # get real values
+    my $PossibleValues = $Param{DynamicFieldConfig}->{Config}->{PossibleValues};
+
+    if ($Value) {
+
+        # check if there is a real value for this key (otherwise keep the key)
+        if ( $Param{DynamicFieldConfig}->{Config}->{PossibleValues}->{$Value} ) {
+
+            # get readeable value
+            $Value = $Param{DynamicFieldConfig}->{Config}->{PossibleValues}->{$Value};
+
+            # check if translation is possible
+            if (
+                defined $Param{LanguageObject}
+                && $Param{DynamicFieldConfig}->{Config}->{TranslatableValues}
+                )
+            {
+
+                # translate value
+                $Value = $Param{LanguageObject}->Get($Value);
+            }
+        }
+    }
+
+    return $Value;
+}
+
 
 1;
 

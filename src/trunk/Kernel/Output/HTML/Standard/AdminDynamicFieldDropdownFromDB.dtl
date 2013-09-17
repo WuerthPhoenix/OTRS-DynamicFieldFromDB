@@ -26,12 +26,17 @@
                     </li>
                 </ul>
             </div>
+
+        <p class="FieldExplanation" style="margin-top: 30px;">
+            $Text{"This functionality is provided by"}
+            <img src="/otrs-web/skins/Agent/default/img/SDEpoweredby.png">
+        </p>
+
         </div>
     </div>
-
     <div class="ContentColumn">
         <form action="$Env{"CGIHandle"}" method="post" class="Validate PreventMultipleSubmits">
-            <input type="hidden" name="Action" value="AdminDynamicFieldTextAreaFromDB" />
+            <input type="hidden" name="Action" value="AdminDynamicFieldDropdownFromDB" />
             <input type="hidden" name="Subaction" value="$QData{"Mode"}Action" />
             <input type="hidden" name="ObjectType" value="$QData{"ObjectType"}" />
             <input type="hidden" name="FieldType" value="$QData{"FieldType"}" />
@@ -66,7 +71,7 @@
 
                                 <label class="Mandatory" for="FieldOrder"><span class="Marker">*</span> $Text{"Field order"}:</label>
                                 <div class="Field">
-                                    $Data{"DynamicFieldOrderSrtg"}
+                                    $Data{"DynamicFieldOrderStrg"}
                                     <div id="FieldOrderError" class="TooltipErrorMessage"><p>$Text{"This field is required and must be numeric."}</p></div>
                                     <div id="FieldOrderServerError" class="TooltipErrorMessage"><p>$Text{"$Data{"FieldOrderServerErrorMessage"}"}</p></div>
                                     <p class="FieldExplanation">$Text{"This is the order in which this field will be shown on the screens where is active."}</p>
@@ -129,11 +134,22 @@
                             <p class="FieldExplanation"><strong>$Text{"Note"}: </strong>$Text{"You need to add the translations manually into the language translation files."}</p>
                         </div>
                         <div class="Clear"></div>
-                       <label for="DBIstring">$Text{"DBI connect string"}:</label>
+                        <label for="Link">$Text{"Show link"}:</label>
+                        <div class="Field">
+                            <input id="Link" class="W50pc" type="text" maxlength="500" value="$QData{"Link"}" name="Link"/>
+                            <p class="FieldExplanation">
+                                $Text{"Here you can specify an optional HTTP link for the field value in Overviews and Zoom screens."}
+                                <br/>
+                                $Text{"You can specify the Key instead of the Value putting the '%KEY%' placeholder."}
+                                <br/>
+                                $Text{"Example"}: http://some.example.com/handle?query=<span>$</span>LQData{"Field1"}?keyid=%KEY%
+                            </p>
+                        </div>
+                        <label for="DBIstring">$Text{"DBI connect string"}:</label>
                         <div class="Field">
                             <input id="DBIstring" class="W50pc" type="text" maxlength="500" value="$QData{"DBIstring"}" name="DBIstring"/>
                             <p class="FieldExplanation">
-                                $Text{"Specify the DBI connect string"}
+                                $Text{"Specify the DBI connect string. If nothing is specified, the local DBObject of otrs is used."}
                                 <br/>
                                 $Text{"Example"}: DBI:mysql:databasename;host=db.example.com
                             </p>
@@ -157,21 +173,45 @@
                         <div class="Clear"></div>
 			<label for="Query">$Text{"Query"}:</label>
                         <div class="Field">
-                            <textarea id="Query" class="W50pc" type="textarea" rows="5" maxlength="500" name="Query">$QData{"Query"}</textarea>
+                            <textarea id="Query" class="W50pc" type="textarea" rows="5" maxlength="1000" name="Query">$QData{"Query"}</textarea>
                             <p class="FieldExplanation">
                                 $Text{"Here you can specify the query to execute for the items in the DynamicField. Put a ? Placeholder for each Parameter."}
 				<br/>
-				$Text{"Each column will then visualized like 'COLUMNNAME: VALUE'"}
+				$Text{"Keep in mind that only the first column is stored (and not visualized in the output) as key, so specifying an unique identifier is mandatory."}
+                                <br/>
+                                $Text{"Example with parameters"}: SELECT id, name FROM table WHERE refid = ?
+				<br/>
+                                $Text{"Example without parameters"}: SELECT id, name FROM table
+                            </p>
+                        </div>
+                        <div class="Clear"></div>
+                        <label for="StoreValue">$Text{"Store Key and Value in DB"}:</label>
+                        <div class="Field">
+                            $Data{"StoreValue"}
+                            <p class="FieldExplanation">$Text{"Activate this option to store Key and Values in DB. If activated, no more Visualization Query is needed."}
+                            <br/>
+                            $Text{"The data is stored in the '<key>||<value>' format in the database."}
+                            </p>
+                        </div>
+                        <div class="Clear"></div>
+
+
+                        <div class="Clear"></div>
+			<label for="VisualQuery">$Text{"Visualization Query"}:</label>
+                        <div class="Field">
+                            <textarea id="VisualQuery" class="W50pc" type="textarea" rows="3" maxlength="500" name="VisualQuery">$QData{"VisualQuery"}</textarea>
+                            <p class="FieldExplanation">
+                                $Text{"Here you must specify the query to execute for retrieving back the string visualized once stored the key. This query *must* have *only one* Parameter that is susbtituted with the stored key."}
                                 <br/>
                                 $Text{"Example with parameters"}: SELECT name FROM table WHERE id = ?
 				<br/>
-                                $Text{"Example without parameters"}: SELECT name FROM table
+                                $Text{"NOTE: This feature is only available with the OTRSTicketMaskExtension add-on on which it depends on."}
                             </p>
                         </div>
                         <div class="Clear"></div>
 			<label for="Parameters">$Text{"Parameters"}:</label>
                         <div class="Field">
-                            <input id="Query" class="W50pc" type="text" maxlength="500" value="$QData{"Parameters"}" name="Parameters"/>
+                            <input id="Parameters" class="W50pc" type="text" maxlength="500" value="$QData{"Parameters"}" name="Parameters"/>
                             <p class="FieldExplanation">
                                 $Text{"Here you must specify the Parameters. ORDER IS RELEVANT!"}
                                 <br/>
@@ -180,6 +220,31 @@
                                 $Text{"Example"}: Customer,From
                             </p>
                         </div>
+                         <div class="Clear"></div>
+			<label for="Separator">$Text{"Separator"}:</label>
+                        <div class="Field">
+                            <input id="Separator" class="W50pc" type="text" maxlength="500" value="$QData{"Separator"}" name="Separator"/>
+                            <p class="FieldExplanation">
+                                $Text{"When multiple columns are selected in the query, the are concateneted in a single row. Specify the separator here."}
+                                <br/>
+                               $Text{"Example"}: ,
+                            </p>
+                        </div>
+<!-- dtl:block:TicketMaskExtensionDisabled -->
+<!--dtl:js_on_document_complete-->
+<script type="text/javascript">//<![CDATA[
+                       <script type="text/javascript">
+			  $("#Separator").attr("disabled", "disabled");
+			  $("#Separator").attr("value", "(not available)");
+			  $("#Separator").css({color:'#999999'});
+			  $("#Parameters").attr("disabled", "disabled");
+			  $("#Parameters").attr("value", "(not available)");
+			  $("#Parameters").css({color:'#999999'});
+                       </script>
+//]]></script>
+<!--dtl:js_on_document_complete-->
+<!-- dtl:block:TicketMaskExtensionDisabled -->
+
                         <div class="Clear"></div>
 			<label for="CacheTTL">$Text{"Cache Time To Live"}:</label>
                         <div class="Field">
@@ -190,16 +255,17 @@
                                $Text{"Example"}: 360
                             </p>
                         </div>
- 
-                      <div class="Clear"></div>
-                      <div class="Clear"></div>
+                        <div class="Clear"></div>
+                        <div class="Clear"></div>
                         <label for="DisplayErrors">$Text{"DEBUG: Display Errors in Form"}:</label>
                         <div class="Field">
-                            $Data{"DisplayErrors"}
+                            $Data{"DisplayErrorsStrg"}
                             <p class="FieldExplanation">$Text{"Activate this option to enable live debug output in fields."}
                             </p>
                         </div>
                         <div class="Clear"></div>
+ 
+                       <div class="Clear"></div>
 
                     </fieldset>
                 </div>
@@ -238,6 +304,20 @@ $('.ValueRemove').bind('click', function () {
 $('.DefaultValueKeyItem,.DefaultValueItem').bind('keyup', function () {
     Core.Agent.Admin.DynamicFieldDropdown.RecreateDefaultValueList();
 });
+
+function toggleVisualQuery() {
+        if ($('#StoreValue').val() == "0") {                                                                                                                                                  
+                $('#VisualQuery').attr('readonly',null);                                                                                                                                      
+        } else {                                                                                                                                                                              
+                $('#VisualQuery').attr('readonly','readonly');                                                                                                                                
+        }
+}
+
+$('#StoreValue').bind('change', function () {
+	toggleVisualQuery();
+});
+
+toggleVisualQuery();
 
 Core.Agent.Admin.DynamicField.ValidationInit();
 //]]></script>

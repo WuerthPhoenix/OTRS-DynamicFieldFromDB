@@ -1,37 +1,34 @@
 # --
-# Kernel/System/DynamicField/Backend/Dropdown.pm - Delegate for DynamicField Dropdown backend
+# Kernel/System/DynamicField/Backend/Multiselect.pm - Delegate for DynamicField Multiselect backend
 # Copyright (C) 2001-2012 OTRS AG, http://otrs.org/
 # --
-# $Id: Dropdown.pm,v 1.63 2012/04/02 11:46:35 mg Exp $
+# $Id: Multiselect.pm,v 1.51.2.1 2012/05/28 22:43:40 cr Exp $
 # --
 # This software comes with ABSOLUTELY NO WARRANTY. For details, see
 # the enclosed file COPYING for license information (AGPL). If you
 # did not receive this file, see http://www.gnu.org/licenses/agpl.txt.
 # --
 
-package Kernel::System::DynamicField::Backend::DropdownFromDB;
+package Kernel::System::DynamicField::Backend::MultiselectFromDB;
 
 use strict;
 use warnings;
-use DBI;
 
 use Kernel::System::VariableCheck qw(:all);
 use Kernel::System::DynamicFieldValue;
 use Kernel::System::DynamicField::Backend::BackendCommon;
-use Kernel::System::Cache;
-use Kernel::System::Ticket;
-#use Kernel::System::CacheInternal;
+use Kernel::System::DynamicField::Backend::DropdownFromDB;
 
 use vars qw($VERSION);
-$VERSION = qw($Revision: 1.63 $) [1];
+$VERSION = qw($Revision: 1.51.2.1 $) [1];
 
 =head1 NAME
 
-Kernel::System::DynamicField::Backend::Dropdown
+Kernel::System::DynamicField::Backend::Multiselect
 
 =head1 SYNOPSIS
 
-DynamicFields Dropdown backend delegate
+DynamicFields Multiselect backend delegate
 
 =head1 PUBLIC INTERFACE
 
@@ -65,9 +62,9 @@ sub new {
     $Self->{DynamicFieldValueObject} = Kernel::System::DynamicFieldValue->new( %{$Self} );
     $Self->{BackendCommonObject}
         = Kernel::System::DynamicField::Backend::BackendCommon->new( %{$Self} );
+    $Self->{BackendDropdownFromDB}
+        = Kernel::System::DynamicField::Backend::DropdownFromDB->new( %{$Self}, %Param );
 
-    $Self->{CacheObject} = Kernel::System::Cache->new(%Param);
-    $Self->{DBObject} = Kernel::System::DB->new(%Param);
 
     return $Self;
 }
@@ -84,13 +81,19 @@ sub ValueGet {
     return if !IsArrayRefWithData($DFValue);
     return if !IsHashRefWithData( $DFValue->[0] );
 
-    return $DFValue->[0]->{ValueText};
+    # extract real values
+    my @ReturnData;
+    for my $Item ( @{$DFValue} ) {
+        push @ReturnData, $Item->{ValueText}
+    }
+
+    return \@ReturnData;
 }
 
 sub ValueSet {
     my ( $Self, %Param ) = @_;
 
-#    # check for valid possible values list
+    # check for valid possible values list
 #    if ( !$Param{DynamicFieldConfig}->{Config}->{PossibleValues} ) {
 #        $Self->{LogObject}->Log(
 #            Priority => 'error',
@@ -99,15 +102,25 @@ sub ValueSet {
 #        return;
 #    }
 
+    # check value
+    my @Values;
+    if ( ref $Param{Value} eq 'ARRAY' ) {
+        @Values = @{ $Param{Value} };
+    }
+    else {
+        @Values = ( $Param{Value} );
+    }
+
+    my @ValueText;
+    for my $Item (@Values) {
+        push @ValueText, { ValueText => $Item };
+    }
+
     my $Success = $Self->{DynamicFieldValueObject}->ValueSet(
         FieldID  => $Param{DynamicFieldConfig}->{ID},
         ObjectID => $Param{ObjectID},
-        Value    => [
-            {
-                ValueText => $Param{Value},
-            },
-        ],
-        UserID => $Param{UserID},
+        Value    => \@ValueText,
+        UserID   => $Param{UserID},
     );
 
     return $Success;
@@ -139,14 +152,28 @@ sub AllValuesDelete {
 sub ValueValidate {
     my ( $Self, %Param ) = @_;
 
-    my $Success = $Self->{DynamicFieldValueObject}->ValueValidate(
-        Value => {
-            ValueText => $Param{Value},
-        },
-        UserID => $Param{UserID}
-    );
-
-    return $Success;
+#    # check value
+#    my @Values;
+#    if ( IsArrayhRefWithData( $Param{Value} ) ) {
+#        @Values = @{ $Param{Value} };
+#    }
+#    else {
+#        @Values = ( $Param{Value} );
+#    }
+#
+#    my $Success;
+#    for my $Item (@Values) {
+#
+#        $Success = $Self->{DynamicFieldValueObject}->ValueValidate(
+#            Value => {
+#                ValueText => $Item,
+#            },
+#            UserID => $Param{UserID}
+#        );
+#        return if !$Success
+#    }
+#    return $Success;
+    return 1;
 }
 
 sub SearchSQLGet {
@@ -206,21 +233,21 @@ sub EditFieldRender {
     }
     $Value = $Param{Value} if defined $Param{Value};
 
-    # extract the dynamic field value form the web request
+    #d extract the dynamic field value form the web request
     my $FieldValue = $Self->EditFieldValueGet(
         %Param,
     );
 
     # set values from ParamObject if present
-    if ( defined $FieldValue ) {
+    if ( IsArrayRefWithData($FieldValue) ) {
         $Value = $FieldValue;
     }
+
     # check and set class if necessary
     my $FieldClass = 'DynamicFieldText';
     if ( defined $Param{Class} && $Param{Class} ne '' ) {
         $FieldClass .= ' ' . $Param{Class};
     }
-    $FieldClass .= ' FromDB';
 
     # set field as mandatory
     $FieldClass .= ' Validate_Required' if $Param{Mandatory};
@@ -231,13 +258,18 @@ sub EditFieldRender {
     # set PossibleValues
     my $SelectionData = $FieldConfig->{PossibleValues};
 
-    ### FOTH preload data at creation
-    $SelectionData = $Self->AJAXPossibleValuesGet(%Param, ForceQuery => 1);
-    ### END FOTH
-
     # use PossibleValuesFilter if defined
     $SelectionData = $Param{PossibleValuesFilter}
         if defined $Param{PossibleValuesFilter};
+
+    # check value
+    my @Values;
+    if ( ref $Value eq 'ARRAY' ) {
+        @Values = @{$Value};
+    }
+    else {
+        @Values = ($Value);
+    }
 
     # set PossibleNone attribute
     my $FieldPossibleNone;
@@ -251,11 +283,12 @@ sub EditFieldRender {
     my $HTMLString = $Param{LayoutObject}->BuildSelection(
         Data => $SelectionData || {},
         Name => $FieldName,
-        SelectedID   => $Value,
+        SelectedID   => \@Values,
         Translation  => $FieldConfig->{TranslatableValues} || 0,
-        PossibleNone => 0, # we do not need to set possibleNone value because we do it already in the AJAXPossibibleValuesGet
+        PossibleNone => $FieldPossibleNone,
         Class        => $FieldClass,
         HTMLQuote    => 1,
+        Multiple     => 1,
     );
     
     if ($FieldConfig->{DisplayErrors}) {
@@ -263,9 +296,14 @@ sub EditFieldRender {
     	
     	# for client side validation
         $HTMLString .= <<"EOF";
-    <div style="color:red">\$Text{"[Debug mode]"}</div>
+
+    <div id="$DivID" class="TooltipErrorMessage">
+        <p>
+            \$Text{"[Debug mode]"}
+        </p>
+    </div>
 EOF
-    }    
+    }
 
     if ( $Param{Mandatory} ) {
         my $DivID = $FieldName . 'Error';
@@ -296,11 +334,11 @@ EOF
 EOF
     }
 
-    if ( $Param{AJAXUpdate} or 1 ) {
+    if ( $Param{AJAXUpdate} ) {
 
         my $FieldSelector = '#' . $FieldName;
 
-        my $FieldsToUpdate = '';
+        my $FieldsToUpdate;
         if ( IsArrayRefWithData( $Param{UpdatableFields} ) ) {
             my $FirstItem = 1;
             FIELD:
@@ -328,7 +366,6 @@ EOF
 EOF
     }
 
-
     if ( $Param{SubmitOnChange} ) {
 
         my $FieldSelector = '#' . $FieldName;
@@ -348,9 +385,6 @@ EOF
 EOF
     }
 
-#	/DynamicFieldConfig
-#	$Param{DynamicFieldConfig}->{Config}->{PossibleValues} = $Self->AJAXPossibleValuesGet(%Param);
-
     # call EditLabelRender on the common backend
     my $LabelString = $Self->{BackendCommonObject}->EditLabelRender(
         DynamicFieldConfig => $Param{DynamicFieldConfig},
@@ -362,7 +396,6 @@ EOF
         Field => $HTMLString,
         Label => $LabelString,
     };
-
 
     return $Data;
 }
@@ -381,7 +414,9 @@ sub EditFieldValueGet {
 
     # otherwise get dynamic field value form param
     else {
-        $Value = $Param{ParamObject}->GetParam( Param => $FieldName );
+        my @Data = $Param{ParamObject}->GetArray( Param => $FieldName );
+
+        $Value = \@Data;
     }
 
     if ( defined $Param{ReturnTemplateStructure} && $Param{ReturnTemplateStructure} eq 1 ) {
@@ -398,7 +433,7 @@ sub EditFieldValueValidate {
     my ( $Self, %Param ) = @_;
 
     # get the field value from the http request
-    my $Value = $Self->EditFieldValueGet(
+    my $Values = $Self->EditFieldValueGet(
         DynamicFieldConfig => $Param{DynamicFieldConfig},
         ParamObject        => $Param{ParamObject},
 
@@ -409,12 +444,12 @@ sub EditFieldValueValidate {
     my $ServerError;
     my $ErrorMessage;
 
-    # perform necessary validations
-    if ( $Param{Mandatory} && !$Value ) {
-        return {
-            ServerError => 1,
-        };
-    }
+#    # perform necessary validations
+#    if ( $Param{Mandatory} && !IsArrayRefWithData($Values) ) {
+#        return {
+#            ServerError => 1,
+#        };
+#    }
 #    else {
 #
 #        # get possible values list
@@ -426,13 +461,15 @@ sub EditFieldValueValidate {
 #        }
 #
 #        # validate if value is in possible values list (but let pass empty values)
-#        if ( $Value && !$PossibleValues->{$Value} ) {
-#            $ServerError  = 1;
-#            $ErrorMessage = 'The field content is invalid';
+#        for my $Item ( @{$Values} ) {
+#            if ( !$PossibleValues->{$Item} ) {
+#                $ServerError  = 1;
+#                $ErrorMessage = 'The field content is invalid';
+#            }
 #        }
 #    }
 
-    # Validate anything (for now)
+    # create resulting structure
     my $Result = {
         ServerError  => $ServerError,
         ErrorMessage => $ErrorMessage,
@@ -444,122 +481,124 @@ sub EditFieldValueValidate {
 sub DisplayValueRender {
     my ( $Self, %Param ) = @_;
 
+    # set HTMLOuput as default if not specified
     if ( !defined $Param{HTMLOutput} ) {
         $Param{HTMLOutput} = 1;
     }
 
-    # get raw Value strings from field value
-    my $Value = defined $Param{Value} ? $Param{Value} : '';
-    my $Key = $Value;
+    # set Value and Title variables
+    my $Value         = '';
+    my $Title         = '';
+    my $ValueMaxChars = $Param{ValueMaxChars} || '';
+    my $TitleMaxChars = $Param{TitleMaxChars} || '';
 
-
-    # get value from stored value in the DB if option is set
-    if ($Param{DynamicFieldConfig}->{Config}->{StoreValue} eq "1") {
-        $Value =~ s/^([^|]+)\|\|(.+)$/$2/;
+    # check value
+    my @Values;
+    if ( ref $Param{Value} eq 'ARRAY' ) {
+        @Values = @{ $Param{Value} };
     }
     else {
-        my %PossibleValues;
-    #	Type => 'Hash',
-    #	Key => $Param{DynamicFieldConfig}->{Config}->{Name},
-    #    );
-    
-    #    if ( !defined %PossibleValues ) {
-        my @row;
-        my $dbh;
-        my $sth;
+        @Values = ( $Param{Value} );
+    }
 
-        if ( !$Param{DynamicFieldConfig}->{Config}->{DBIstring} ) {
-            $Self->{DBObject}->Prepare(
-                SQL => $Param{DynamicFieldConfig}->{Config}->{VisualQuery},
-        		Bind => $Key,
+    # get real values
+    my $PossibleValues     = $Param{DynamicFieldConfig}->{Config}->{PossibleValues};
+    my $TranslatableValues = $Param{DynamicFieldConfig}->{Config}->{TranslatableValues};
+
+    my @ReadableValues;
+    my @ReadableTitles;
+
+    my $ShowValueEllipsis;
+    my $ShowTitleEllipsis;
+
+    VALUEITEM:
+    for my $Item (@Values) {
+        next VALUEITEM if !$Item;
+
+        my $ReadableValue = $Item;
+
+	$ReadableValue =~ s/^([^|]+)\|\|(.+)$/$2/;
+
+        if ( $PossibleValues->{$Item} ) {
+            $ReadableValue = $PossibleValues->{$Item};
+            if ($TranslatableValues) {
+                $ReadableValue = $Param{LayoutObject}->{LanguageObject}->Get($ReadableValue);
+            }
+        }
+
+        my $ReadableLength = length $ReadableValue;
+
+        # set title equal value
+        my $ReadableTitle = $ReadableValue;
+
+        # cut strings if needed
+        if ( $ValueMaxChars ne '' ) {
+
+            $ShowValueEllipsis = 1 if ( length $ReadableValue > $ValueMaxChars );
+            $ReadableValue = substr $ReadableValue, 0, $ValueMaxChars;
+
+            # decrease the max parameter
+            $ValueMaxChars = $ValueMaxChars - $ReadableLength;
+            $ValueMaxChars = 0 if $ValueMaxChars < 0;
+
+        }
+
+        if ( $TitleMaxChars ne '' ) {
+
+            $ShowTitleEllipsis = 1 if ( length $ReadableTitle > $ValueMaxChars );
+            $ReadableTitle = substr $ReadableTitle, 0, $TitleMaxChars;
+
+            # decrease the max parameter
+            $TitleMaxChars = $TitleMaxChars - $ReadableLength;
+            $TitleMaxChars = 0 if $TitleMaxChars < 0;
+        }
+
+        # HTMLOuput transformations
+        if ( $Param{HTMLOutput} ) {
+
+            $ReadableValue = $Param{LayoutObject}->Ascii2Html(
+                Text => $ReadableValue,
             );
 
-            #fetch first row
-            @row = $Self->{DBObject}->FetchrowArray();
+            $ReadableTitle = $Param{LayoutObject}->Ascii2Html(
+                Text => $ReadableTitle,
+            );
+        }
 
-        } else {
-            $dbh = DBI->connect($Param{DynamicFieldConfig}->{Config}->{DBIstring}, $Param{DynamicFieldConfig}->{Config}->{DBIuser}, $Param{DynamicFieldConfig}->{Config}->{DBIpass},
-                              { PrintError => 0, AutoCommit => 0, HandleError => \&PossibleValuesError }) or return $Self->PossibleValuesError("could not connect to DB: $DBI::errstr");
-        
-            $dbh->{'mysql_enable_utf8'} = 1;
-    
-            $sth = $dbh->prepare($Param{DynamicFieldConfig}->{Config}->{VisualQuery});
-            $sth->execute( $Key );
-    
-            # fetch first row
-            @row = $sth->fetchrow_array;        
-        }
-    
-    	my $line = '';
-    	for my $col (@row) {
-    	    $line .= $col.$Param{DynamicFieldConfig}->{Config}->{Separator};
-    	}
-    	$line = substr($line, 0, -1 * length($Param{DynamicFieldConfig}->{Config}->{Separator}));
-    
-        if ( $Param{DynamicFieldConfig}->{Config}->{DBIstring} ) {
-            $dbh->disconnect;
-        }
-    
-        # get real value
-        if ( $PossibleValues{$Value} ) {
-    
-            # get readeable value
-            $Value = $PossibleValues{$Value};
-        }
-    }
-   
-    # check is needed to translate values
-    if ( $Param{DynamicFieldConfig}->{Config}->{TranslatableValues} ) {
-
-        # translate value
-        $Value = $Param{LayoutObject}->{LanguageObject}->Get($Value);
+        push @ReadableValues, $ReadableValue if length $ReadableValue;
+        push @ReadableTitles, $ReadableTitle if length $ReadableTitle;
     }
 
-    # set title as value after update and before limit
-    my $Title = $Value;
+    # get specific field settings
+    my $FieldConfig = $Self->{ConfigObject}->Get('DynamicFields::Backend')->{MultiselectFromDB} || {};
 
-    # HTMLOuput transformations
-    if ( $Param{HTMLOutput} ) {
-        $Value = $Param{LayoutObject}->Ascii2Html(
-            Text => $Value,
-            Max => $Param{ValueMaxChars} || '',
-        );
+    # set new line separator
+    my $ItemSeparator = $FieldConfig->{ItemSeparator} || ', ';
 
-        $Title = $Param{LayoutObject}->Ascii2Html(
-            Text => $Title,
-            Max => $Param{TitleMaxChars} || '',
-        );
-    }
-    else {
-        if ( $Param{ValueMaxChars} && length($Value) > $Param{ValueMaxChars} ) {
-            $Value = substr( $Value, 0, $Param{ValueMaxChars} ) . '...';
-        }
-        if ( $Param{TitleMaxChars} && length($Title) > $Param{TitleMaxChars} ) {
-            $Title = substr( $Title, 0, $Param{TitleMaxChars} ) . '...';
-        }
-    }
+    $Value = join( $ItemSeparator, @ReadableValues );
+    $Title = join( $ItemSeparator, @ReadableTitles );
 
-    # set field link form config
-    my $Link = $Param{DynamicFieldConfig}->{Config}->{Link} || '';
+    $Value .= '...' if $ShowValueEllipsis;
+    $Title .= '...' if $ShowTitleEllipsis;
 
-    $Link =~ s/%KEY%/$Key/g;
+    # this field type does not support the Link Feature
+    my $Link;
 
-    my $Query = $Param{DynamicFieldConfig}->{Config}->{Query} || '';
-
+    # create return structure
     my $Data = {
         Value => $Value,
         Title => $Title,
         Link  => $Link,
-	Query => $Query,
     };
 
     return $Data;
+
 }
 
 sub IsSortable {
     my ( $Self, %Param ) = @_;
 
-    return 1;
+    return 0;
 }
 
 sub SearchFieldRender {
@@ -588,12 +627,13 @@ sub SearchFieldRender {
         %Param,
     );
 
-    if ( defined $FieldValues ) {
+    if ( defined $FieldValues )
+    {
         $Value = $FieldValues;
     }
 
     # check and set class if necessary
-    my $FieldClass = 'DynamicFieldMultiSelect FromDB';
+    my $FieldClass = 'DynamicFieldMultiSelect';
 
     # set PossibleValues
     my $SelectionData = $FieldConfig->{PossibleValues};
@@ -685,8 +725,7 @@ sub SearchFieldParameterBuild {
             for my $Item ( @{$Value} ) {
 
                 # set the display value
-                my $DisplayItem = $Param{DynamicFieldConfig}->{Config}->{PossibleValues}->{$Item}
-                    || $Item;
+                my $DisplayItem = $Param{DynamicFieldConfig}->{Config}->{PossibleValues}->{$Item};
                 if ( $Param{DynamicFieldConfig}->{Config}->{TranslatableValues} ) {
 
                     # translate the value
@@ -766,10 +805,34 @@ sub CommonSearchFieldParameterBuild {
 sub ReadableValueRender {
     my ( $Self, %Param ) = @_;
 
-    my $Value = defined $Param{Value} ? $Param{Value} : '';
+    # set Value and Title variables
+    my $Value = '';
+    my $Title = '';
 
-    # set title as value after update and before limit
-    my $Title = $Value;
+    # check value
+    my @Values;
+    if ( ref $Param{Value} eq 'ARRAY' ) {
+        @Values = @{ $Param{Value} };
+    }
+    else {
+        @Values = ( $Param{Value} );
+    }
+
+    my @ReadableValues;
+
+    VALUEITEM:
+    for my $Item (@Values) {
+        next VALUEITEM if !$Item;
+
+        push @ReadableValues, $Item;
+    }
+
+    # set new line separator
+    my $ItemSeparator = ', ';
+
+    # Ouput transformations
+    $Value = join( $ItemSeparator, @ReadableValues );
+    $Title = $Value;
 
     # cut strings if needed
     if ( $Param{ValueMaxChars} && length($Value) > $Param{ValueMaxChars} ) {
@@ -779,6 +842,7 @@ sub ReadableValueRender {
         $Title = substr( $Title, 0, $Param{TitleMaxChars} ) . '...';
     }
 
+    # create return structure
     my $Data = {
         Value => $Value,
         Title => $Title,
@@ -793,7 +857,7 @@ sub TemplateValueTypeGet {
     my $FieldName = 'DynamicField_' . $Param{DynamicFieldConfig}->{Name};
 
     # set the field types
-    my $EditValueType   = 'SCALAR';
+    my $EditValueType   = 'ARRAY';
     my $SearchValueType = 'ARRAY';
 
     # return the correct structure
@@ -853,274 +917,49 @@ sub ObjectMatch {
 
     my $FieldName = 'DynamicField_' . $Param{DynamicFieldConfig}->{Name};
 
-    # return false if not match
-    if ( $Param{ObjectAttributes}->{$FieldName} ne $Param{Value} ) {
-        return 0;
+    # the attribute must be an array
+    return 0 if !IsArrayRefWithData( $Param{ObjectAttributes}->{$FieldName} );
+
+    my $Match;
+
+    # search in all values for this attribute
+    VALUE:
+    for my $AttributeValue ( @{ $Param{ObjectAttributes}->{$FieldName} } ) {
+
+        # only need to match one
+        if ( $Param{Value} eq $AttributeValue ) {
+            $Match = 1;
+            last VALUE;
+        }
     }
 
-    return 1;
-}
-
-sub PossibleValuesError {
-    my ( $Self, $message, $displayerror) = @_;
-    my %PossibleValuesError;
-    my $ErrorMessage = '';
-    $ErrorMessage = 'ERROR: '.$message if $displayerror;
-    %PossibleValuesError = ( '-' => $ErrorMessage );
-    return \%PossibleValuesError;
+    return $Match;
 }
 
 sub AJAXPossibleValuesGet {
     my ( $Self, %Param ) = @_;
 
-    ## ENABLE FOR DEBUG: ##
-    my $DEBUG = 0;
-    
-    ## set displayerror
-    my $DISPLAYERRORS = $Param{DynamicFieldConfig}->{Config}->{DisplayErrors} || 0;
-
-    use Data::Dumper;
-    open ERRLOG, '>>/tmp/DF_'.$Param{DynamicFieldConfig}->{Name}.'.log' if $DEBUG;
-    print ERRLOG "[AJAXPossibleValuesGet START]---------------------------------\n" if $DEBUG;
-
-    my $query_needed = 0;
-
+    # to store the possible values
     my %PossibleValues;
 
-    my @SQLParameters_values;
-    my @SQLParameters_values_refs;
-
-    # split Parameters from DynamicFieldConfig in an array:
-    my @SQLParameters_keys = split(',', $Param{DynamicFieldConfig}->{Config}->{Parameters});
-
-    # We create a mapping for the parameters:
-    # %SQLParameters_hash = {
-    #    Param1 => 'value1',
-    #    Param2 => undef,
-    # }
-    my %SQLParameters_hash;
-    for my $key (@SQLParameters_keys) {
-        $SQLParameters_hash{$key} = undef;
+    if ( $Param{DynamicFieldConfig}->{Config} ) {
+	$Param{DynamicFieldConfig}->{Config}->{StoreValue} = "1";
+        %PossibleValues = %{ $Self->{BackendDropdownFromDB}->AJAXPossibleValuesGet(%Param) };
     }
 
+#    # set none value if defined on field config
+#    if ( $Param{DynamicFieldConfig}->{Config}->{PossibleNone} ) {
+#        %PossibleValues = ( '' => '-' );
+#    }
+#
+#    # set all other possible values if defined on field config
+#    if ( IsHashRefWithData( $Param{DynamicFieldConfig}->{Config}->{PossibleValues} ) ) {
+#        %PossibleValues = (
+#            %PossibleValues,
+#            %{ $Param{DynamicFieldConfig}->{Config}->{PossibleValues} },
+#        );
+#    }
 
-    #### Distinguish between real ajax request and 'first visualization'
-   
-=comment
-
-considerations:
-- we can distinguish if it is an ajax request or a 'first load' with the presence of $Param{ParamObject}->{Query}->{param}->{ElementChanged}.
-- we can distinguish if it is a new Ticket or a Ticket editing with the presence of $Param{ParamObject}->GetParam( Param => 'TicketID')
-
-on ticket editing,
-	on 'first load', load take all @SQLParameters_values from the stored ticket information,
-	on 'ajax request', take value from http arguments, if not present, take from ticket information.
-on ticket creation,
-	on 'first load', take values from http arguments,
-	on 'ajax request' take values from http arguments,
-
-so we can solve each requirement with following code:
-	if ( there is stored ticket information ) fill sqlparameter_values with stored information
-	if ( there are http argument values ) fill sqlparameter_values with http argument values overwriting stored information if present
-		if ( a http argument was changed that the query depends on ) force_query = 1
-
-	if (!force_query) take from cache if ( cache present )
-
-=cut
-
-    if ( scalar(@SQLParameters_keys) && $Param{ParamObject} && $Param{ParamObject}->GetParam( Param => 'TicketID') ) {
-    	my %TicketInfo;
-    	# get Ticket from cache:
-    	if ($Param{LayoutObject}->{TicketObject}->{'Cache::GetTicket'.$Param{ParamObject}->GetParam( Param => 'TicketID')}{''}{1}) {
-    		%TicketInfo = %{$Param{LayoutObject}->{TicketObject}->{'Cache::GetTicket'.$Param{ParamObject}->GetParam( Param => 'TicketID')}{''}{1}};
-    	}
-    	else {
-                my $EncodeObject = Kernel::System::Encode->new(
-                    ConfigObject => $Param{ParamObject}->{ConfigObject},
-                );
-                my $TimeObject = Kernel::System::Time->new(
-                    ConfigObject => $Param{ParamObject}->{ConfigObject},
-                    LogObject    => $Param{ParamObject}->{LogObject},
-                );
-                my $DBObject = Kernel::System::DB->new(
-                    ConfigObject => $Param{ParamObject}->{ConfigObject},
-                    EncodeObject => $EncodeObject,
-                    LogObject    => $Param{ParamObject}->{LogObject},
-                    MainObject   => $Param{ParamObject}->{MainObject},
-                );
-                my $TicketObject = Kernel::System::Ticket->new(
-                    ConfigObject       => $Param{ParamObject}->{ConfigObject},
-                    LogObject          => $Param{ParamObject}->{LogObject},
-                    DBObject           => $DBObject,
-                    MainObject         => $Param{ParamObject}->{MainObject},
-                    TimeObject         => $TimeObject,
-                    EncodeObject       => $EncodeObject,
-                );
-                %TicketInfo = $TicketObject->TicketGet(
-                    TicketID      => $Param{ParamObject}->GetParam( Param => 'TicketID'),
-                    DynamicFields => 1,         # Optional, default 0. To include the dynamic field values for this ticket on the return structure.
-                    UserID        => 0,
-                );
-    	}
-
-    	for my $key (@SQLParameters_keys) {
-    		if ($key eq 'SelectedCustomerUser') {
-    			$SQLParameters_hash{$key} = $TicketInfo{CustomerUserID};
-    		}
-    		else {
-    			$SQLParameters_hash{$key} = $TicketInfo{$key};
-    		}
-    	}
-    } 
-    
-    if ( $Param{ParamObject} && $Param{ParamObject}->{Query}->{param} ) {
-    	# REAL AJAX REQUEST, TAKE PARAMS FROM AJAX REQUEST
-            # for each parameter extract value from the ParamObject
-            for my $key (@SQLParameters_keys) {
-                print ERRLOG Dumper($Param{ParamObject}->{Query}->{param}) if $DEBUG;
-                if ($Param{ParamObject}->{Query}->{param}->{$key} && $Param{ParamObject}->{Query}->{param}->{$key}[0]) {
-                    $SQLParameters_hash{$key} = $Param{ParamObject}->{Query}->{param}->{$key}[0];
-                }
-                # if the changed Element is in the parameter list, update data
-                if ($Param{ParamObject}->{Query}->{param}->{ElementChanged} && $key eq $Param{ParamObject}->{Query}->{param}->{ElementChanged}[0]) {
-                    $query_needed = 1;
-                }
-                else {
-                }
-            }
-    } else {
-        print ERRLOG "ParamObject DOES NOT EXIST!!\n" if $DEBUG;
-    }
-    
-    # finally build the original array with only values:
-    for my $key (@SQLParameters_keys) {
-        # sometimes we got '<key>||<value>' string, so in that case extract key only:
-
-        if ( ! $SQLParameters_hash{$key} ) {
-            # if one parameter is undef, return empty Possible values;
-            return $Self->PossibleValuesError('wrong number of parameters, please check settings. ('.$key.' is missing)', $DISPLAYERRORS);
-        }
-
-        $SQLParameters_hash{$key} =~ s/^([^|]+)\|\|(.+)$/$1/;
-
-        print ERRLOG $SQLParameters_hash{$key}."\n\n" if $DEBUG;
-
-        push(@SQLParameters_values, $SQLParameters_hash{$key});
-        push(@SQLParameters_values_refs, \$SQLParameters_hash{$key});
-
-    }
-
-    if (!(($Param{DynamicFieldConfig}->{Config}->{Query} =~ tr/?//) eq scalar(@SQLParameters_values))) {
-        return $Self->PossibleValuesError('wrong number of parameters, please check settings.', $DISPLAYERRORS);
-    }
-
-    my $PossibleValues_ref = $Self->{CacheObject}->Get(
-        Type	=> 'Hash',
-        Key	=> $Param{DynamicFieldConfig}->{Name} . join('', @SQLParameters_values),
-    );
-
-    if ($PossibleValues_ref) { # we got the values in cache
-        %PossibleValues = %{ $PossibleValues_ref };
-    }
-    else {
-        my $selected_parameter = $Param{ParamObject}->{Query}->{param}->{$Param{DynamicFieldConfig}->{Config}->{Parameters}}[0];
-    
-        # set none value if defined on field config
-        if ( $Param{DynamicFieldConfig}->{Config}->{PossibleNone} ) {
-            %PossibleValues = ( '' => '-' );
-        }
-
-
-    	# if no query specified quit:
-        if ( !$Param{DynamicFieldConfig}->{Config}->{Query} || $Param{DynamicFieldConfig}->{Config}->{Query} eq '' ) {
-            return $Self->PossibleValuesError('no query specified, please check settings.', $DISPLAYERRORS);
-        }
-
-        ### SET DEFAULT SETTINGS
-        # set a default Separator
-        if ( !$Param{DynamicFieldConfig}->{Config}->{Separator} ) {
-            $Param{DynamicFieldConfig}->{Config}->{Separator} = ', ';
-        }
-        ### END SET DEFAULT SETTINGS
-
-        my @row;
-        my $sth;
-        my $dbh;
-
-        # use local DB Object if no DBI string is specified.
-        if ( !$Param{DynamicFieldConfig}->{Config}->{DBIstring} ) {
-            $Self->{DBObject}->Prepare(
-                SQL => $Param{DynamicFieldConfig}->{Config}->{Query},
-                Bind => \@SQLParameters_values_refs,
-            );
-
-            #fetch first row
-            @row = $Self->{DBObject}->FetchrowArray();
-
-        } else {
-            $dbh = DBI->connect($Param{DynamicFieldConfig}->{Config}->{DBIstring}, $Param{DynamicFieldConfig}->{Config}->{DBIuser}, $Param{DynamicFieldConfig}->{Config}->{DBIpass},
-                              { PrintError => 0, AutoCommit => 0, HandleError => \&PossibleValuesError }) or return $Self->PossibleValuesError("could not connect to DB: $DBI::errstr", $DISPLAYERRORS);
-        
-            $dbh->{'mysql_enable_utf8'} = 1;
-    
-            $sth = $dbh->prepare($Param{DynamicFieldConfig}->{Config}->{Query});
-            $sth->execute( @SQLParameters_values );
-    
-            # fetch first row
-            @row = $sth->fetchrow_array;        
-        }
-
-        print ERRLOG ":::Extracted from DB:::\n" if $DEBUG;
-        print ERRLOG Dumper(@row) if $DEBUG;
-        print ERRLOG "::::::::::::::::::::::::::\n" if $DEBUG;
-        close ERRLOG if $DEBUG;
-
-        # cicle fetched rows from DB
-        while (@row) {
-            my $line = '';
-            my $firstRow = 0;
-            for my $col (@row) {
-                if (!utf8::is_utf8($col)) {
-                    utf8::decode( $col );
-                }
-                if (!$firstRow) { # skip first row 
-                    $firstRow = 1;
-            	next;
-                }
-                $line .= $col.$Param{DynamicFieldConfig}->{Config}->{Separator};
-            }
-
-            $line = substr($line, 0, -1 * length($Param{DynamicFieldConfig}->{Config}->{Separator}));
-            if ($Param{DynamicFieldConfig}->{Config}->{StoreValue} && $Param{DynamicFieldConfig}->{Config}->{StoreValue} eq "1") {
-                %PossibleValues = ( %PossibleValues, $row[0]."||".$line => $line);
-            }
-            else {
-                %PossibleValues = ( %PossibleValues, $row[0] => $line );
-            }
-
-            # fetch new row depending on DB connection type
-            if ( !$Param{DynamicFieldConfig}->{Config}->{DBIstring} ) {
-                @row = $Self->{DBObject}->FetchrowArray();
-            }
-            else {
-                @row = $sth->fetchrow_array;
-		if (!@row) {
-                    $dbh->disconnect;
-                }
-            }
-        }
-
-        # put all in the cache:
-	
-        $Self->{CacheObject}->Set(
-            Type	=> 'Hash',
-            Key		=> $Param{DynamicFieldConfig}->{Name} . join('', @SQLParameters_values),
-            Value	=> \%PossibleValues,
-            TTL		=> $Param{DynamicFieldConfig}->{CacheTTL} || 360,
-        );
-    }
-
-    $Param{DynamicFieldConfig}->{Config}->{PossibleValues} = \%PossibleValues;
     # retrun the possible values hash as a reference
     return \%PossibleValues;
 }
@@ -1136,6 +975,15 @@ sub HistoricalValuesGet {
 
     # retrun the historical values from database
     return $HistoricalValues;
+}
+
+sub ValueLookup {
+    my ( $Self, %Param ) = @_;
+
+    my $Value = defined $Param{Key} ? $Param{Key} : '';
+
+    return $Value;
+
 }
 
 1;

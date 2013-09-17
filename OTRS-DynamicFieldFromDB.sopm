@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <otrs_package version="1.0">
     <Name>Wuerth Phoenix DynamicField From DB</Name>
-    <Version>1.1.2</Version>
-    <Framework>3.1.x</Framework>
+    <Version>1.2.0</Version>
+    <Framework>3.2.x</Framework>
     <Vendor>Wuerth Phoenix S.R.L.</Vendor>
     <URL>http://www.wuerth-phoenix.com/</URL>
     <License>GNU GENERAL PUBLIC LICENSE Version 2, June 1991</License>
@@ -11,10 +11,11 @@
     <ChangeLog Version="1.1.1" Date="2013-01-08 18:45:21">Better error handling on configuration. Local DBObject of otrs now supported.</ChangeLog>
     <ChangeLog Version="1.1.2" Date="2013-01-08 18:45:21">- fixed bug in DisplayValueRender that tried to use missing DBIString when "Store Key and value" was set to "yes" - fixed bug that caused the creation/edit of a ticket to fail when an error message in the DynamicField was displayed - added a 'FromDB' class to identify DynamicFieldsFromDB in dom/css</ChangeLog>
     <ChangeLog Version="1.1.3" Date="2013-02-26 18:45:21">Added Debug mode, added textarea in query field in TextAreaFromDB</ChangeLog>
+    <ChangeLog Version="1.2.0" Date="2013-09-17 10:40:21">Merged various fixes from projects. 1.2.0 Tag. </ChangeLog>
     <Description Lang="en">Adds a new DynamicField Type that permits to load the possible values at runtime from an external DB.</Description>
     <IntroInstall Type="post" Lang="en" Title="Thank you!">Thank you for choosing the WP DynamicField From DB.</IntroInstall>
-    <BuildDate>?</BuildDate>
-    <BuildHost>?</BuildHost>
+    <BuildDate>2013-09-17 10:40:21</BuildDate>
+    <BuildHost>otrs.wuerth-phoenix.com</BuildHost>
     <Filelist>
         <File Permission="644" Location="Kernel/Config/Files/DynamicFieldDropdownFromDB.xml"></File>
         <File Permission="644" Location="Kernel/Output/HTML/Standard/AdminDynamicFieldDropdownFromDB.dtl"></File>
