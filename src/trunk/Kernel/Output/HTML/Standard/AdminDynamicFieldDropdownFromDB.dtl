@@ -173,7 +173,11 @@
                         <div class="Clear"></div>
 			<label for="Query">$Text{"Query"}:</label>
                         <div class="Field">
+<<<<<<< HEAD:src/trunk/Kernel/Output/HTML/Standard/AdminDynamicFieldDropdownFromDB.dtl
                             <textarea id="Query" class="W50pc" type="textarea" rows="5" maxlength="1000" name="Query">$QData{"Query"}</textarea>
+=======
+                            <textarea id="Query" class="W50pc" type="textarea" rows="5" maxlength="1500" name="Query">$QData{"Query"}</textarea>
+>>>>>>> 856da230201f9c802aa82ed3b2d4351cd0abb13a:src/Kernel/Output/HTML/Standard/AdminDynamicFieldDropdownFromDB.dtl
                             <p class="FieldExplanation">
                                 $Text{"Here you can specify the query to execute for the items in the DynamicField. Put a ? Placeholder for each Parameter."}
 				<br/>

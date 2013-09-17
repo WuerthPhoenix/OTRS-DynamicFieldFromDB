@@ -1060,10 +1060,13 @@ so we can solve each requirement with following code:
                     print ERRLOG Dumper(\$Param{ParamObject}->{Query}->{param}->{ElementChanged}[0]) if $DEBUG;
                     $query_needed = 1;
 <<<<<<< HEAD:src/trunk/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
+<<<<<<< HEAD:src/trunk/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
 	            my @val = ( '+' );
                     $Param{ParamObject}->{Query}->{param}->{'DynamicField_'.$Param{DynamicFieldConfig}->{Name}} = \@val;
  	        }
 =======
+=======
+>>>>>>> 856da230201f9c802aa82ed3b2d4351cd0abb13a:src/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
                     print ERRLOG '$Param{ParamObject}->{Query}->{param}->{ElementChanged}[0]' if $DEBUG;
                     print ERRLOG Dumper(\$Param{ParamObject}->{Query}->{param}->{ElementChanged}[0]) if $DEBUG;
                     my @val = ( '+' );
@@ -1224,6 +1227,7 @@ sub HistoricalValuesGet {
     );
 
 <<<<<<< HEAD:src/trunk/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
+<<<<<<< HEAD:src/trunk/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
     # BINI - 27.03.2013
     #
     # Remove "<val>||" from historical values used in search form
@@ -1237,6 +1241,8 @@ sub HistoricalValuesGet {
     }
     # BINI
 =======
+=======
+>>>>>>> 856da230201f9c802aa82ed3b2d4351cd0abb13a:src/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
     # BINI - 27.03.2013                                                                                                                                      
     #                                                                                                                                                        
     # Remove "<key >||" from historical values used in search form                                                                                            
@@ -1249,6 +1255,9 @@ sub HistoricalValuesGet {
       }                                                                                                                                                      
     }                                                                                                                                                        
     # BINI                                                                                                                                                   
+<<<<<<< HEAD:src/trunk/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
+>>>>>>> 856da230201f9c802aa82ed3b2d4351cd0abb13a:src/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
+=======
 >>>>>>> 856da230201f9c802aa82ed3b2d4351cd0abb13a:src/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
     #
 
@@ -1261,6 +1270,7 @@ sub ValueLookup {
 
     my $Value = defined $Param{Key} ? $Param{Key} : '';
 
+<<<<<<< HEAD:src/trunk/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
 <<<<<<< HEAD:src/trunk/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
     # get real values
     my $PossibleValues = $Param{DynamicFieldConfig}->{Config}->{PossibleValues};
@@ -1285,6 +1295,10 @@ sub ValueLookup {
             }
         }
     }
+=======
+    # remove the '<key>||' if present
+    $Value =~ s/^([^|]+)\|\|(.+)$/$2/; 
+>>>>>>> 856da230201f9c802aa82ed3b2d4351cd0abb13a:src/Custom/Kernel/System/DynamicField/Backend/DropdownFromDB.pm
 =======
     # remove the '<key>||' if present
     $Value =~ s/^([^|]+)\|\|(.+)$/$2/; 

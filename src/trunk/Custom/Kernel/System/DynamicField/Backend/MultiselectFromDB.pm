@@ -258,6 +258,10 @@ sub EditFieldRender {
     # set PossibleValues
     my $SelectionData = $FieldConfig->{PossibleValues};
 
+    ### FOTH preload data at creation
+    $SelectionData = $Self->AJAXPossibleValuesGet(%Param, ForceQuery => 1);
+    ### END FOTH
+
     # use PossibleValuesFilter if defined
     $SelectionData = $Param{PossibleValuesFilter}
         if defined $Param{PossibleValuesFilter};
